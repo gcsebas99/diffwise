@@ -5,7 +5,7 @@
 | 1.1 Scaffold | ⚪ | 2026-10-29 | Env config is parsed with Zod at startup and fails loudly, naming the variable but never echoing its value. |
 | 1.2 Demo repo + rules | 🔧⚪ | 2026-10-29 | Each seeded branch is a labeled eval case; a clean branch measures false positives and the injection branch pairs with a real violation so "pass" can't hide it. |
 | 1.3 Rules loader | 🟡 | 2026-10-30 | Config fails loudly at load with every problem named by rule id; globs need dot:true or dotfiles are silently skipped. |
-| 1.4 Diff model | 🟡 | | |
+| 1.4 Diff model | 🟡 | 2026-10-30 | Only new-side lines inside a hunk are commentable; git is called with arg arrays plus -e/--/--end-of-options, pinned to SHAs. |
 | 1.5 Tools & registry | 🟢→🟡 | | |
 | 1.6 Prompt assembly | 🟢→🟡 | | |
 | 1.7 Model client | 🟡 | | |
