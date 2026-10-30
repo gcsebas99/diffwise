@@ -29,7 +29,7 @@ can block the merge. Live LLM calls only happen when the PR has the `live-review
 **Accept:** tests with the fake client: comment shape, summary content, marker handling.
 **Read closely:** why the verdict is the job's exit code and not a review `event`.
 
-## 2.2 Action adapter `[GH:ACTIONS]` 🟢 YOU BUILD
+## 2.2 Action adapter `[GH:ACTIONS]` 🟡 PASTE & REVIEW (was 🟢)
 
 - `src/adapters/action/main.ts`: read inputs with `@actions/core` (`anthropic-api-key`, `model`,
   `mode: live|deterministic-only`, `github-token`), read the PR number and SHAs from the event payload,
@@ -50,7 +50,7 @@ can block the merge. Live LLM calls only happen when the PR has the `live-review
 
 **Accept:** `node dist/index.js` starts and fails gracefully with no env.
 
-## 2.4 Workflow in the demo repo `[GH:ACTIONS]` `[GUARD]` 🟢 YOU BUILD
+## 2.4 Workflow in the demo repo `[GH:ACTIONS]` `[GUARD]` 🟡 PASTE & REVIEW (was 🟢)
 
 Write `.github/workflows/review.yml` in `diffwise-demo` yourself:
 

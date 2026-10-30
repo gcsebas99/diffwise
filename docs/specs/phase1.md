@@ -54,7 +54,7 @@ Then for each next one: *"Next: sub-task 1.N. Plan first."*
 **Read closely:** the `commentable` flag. GitHub rejects review comments on lines outside the diff (422);
 this is where you prevent it.
 
-## 1.5 Tools & registry `[HARNESS:TOOLS]` 🟢 YOU BUILD
+## 1.5 Tools & registry `[HARNESS:TOOLS]` 🟡 PASTE & REVIEW (was 🟢)
 
 - `src/core/tools/`: a `Tool` type = name, description, Zod `input`, `run(ctx, args) → ToolResult`
   (`{ ok, content, truncated }`). A `ToolRegistry` with `toAnthropicTools()` (JSON Schema from Zod) and
@@ -71,7 +71,7 @@ this is where you prevent it.
 non-commentable line returns a helpful error.
 **Learn:** why tool descriptions are prompt engineering; why errors go back to the model instead of crashing.
 
-## 1.6 Prompt assembly `[HARNESS:CONTEXT]` `[HARNESS:GUARD]` 🟢 YOU BUILD
+## 1.6 Prompt assembly `[HARNESS:CONTEXT]` `[HARNESS:GUARD]` 🟡 PASTE & REVIEW (was 🟢)
 
 - `src/core/prompt.ts`: `buildSystemPrompt(rules)` and `buildInitialMessage(prContext)`.
   - System: role, method (list files → inspect relevant diffs → read context only when needed → report →
@@ -94,7 +94,7 @@ non-commentable line returns a helpful error.
 
 **Accept:** ScriptedModel drives a two-turn exchange in a test.
 
-## 1.8 The agent loop `[HARNESS:LOOP]` 🟢 YOU BUILD — the core of Phase 1
+## 1.8 The agent loop `[HARNESS:LOOP]` 🟡 PASTE & REVIEW (was 🟢) — the core of Phase 1
 
 `src/core/loop.ts`, readable top to bottom (~120 lines):
 

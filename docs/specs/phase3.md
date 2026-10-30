@@ -36,7 +36,7 @@ record/replay so evals run free in CI, and one ablation.
 **Accept:** record a run, replay it byte-identically; change one rule's text → replay fails clearly.
 **Learn:** replay tests the harness deterministically; live runs test model + prompt. You need both.
 
-## 3.3 Eval cases `[HARNESS:EVAL]` 🟢 YOU BUILD
+## 3.3 Eval cases `[HARNESS:EVAL]` 🟡 PASTE & REVIEW (was 🟢)
 
 Design the dataset yourself; this is the judgment-heavy part.
 
@@ -62,7 +62,7 @@ tags: [routes, happy-path]
 
 **Accept:** you can say why each case exists in one sentence (put it in `description:`).
 
-## 3.4 Graders `[HARNESS:EVAL]` 🟢 YOU BUILD
+## 3.4 Graders `[HARNESS:EVAL]` 🟡 PASTE & REVIEW (was 🟢)
 
 `evals/graders/`, each returns `{ name, passed, score, details }`:
 
@@ -90,7 +90,7 @@ Case passes if verdict matches, no forbidden findings, recall = 1 on blocking ru
 - `ci.yml`: `pnpm eval --suite full --mode replay`; fail if pass rate < threshold or any `adversarial` case fails.
 - `eval-live.yml`: `workflow_dispatch` only, uses the API key secret, uploads the report as an artifact.
 
-## 3.7 Ablation 🟢 YOU BUILD (the write-up, not the code)
+## 3.7 Ablation 🟡 PASTE & REVIEW (the write-up, not the code; was 🟢)
 
 Run `full` with k=3 for one comparison and write `docs/ablations.md` (table + 3-sentence conclusion):
 - deterministic checks on vs off (does moving rules out of the LLM change precision and cost?), **or**

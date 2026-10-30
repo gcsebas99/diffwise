@@ -29,7 +29,7 @@ Render, the server verifies it, authenticates as the App installation, reads the
 
 **Verify:** `gh api /repos/<you>/diffwise-demo/installation` (as you) shows the installation.
 
-## 4.2 App authentication `[GH:AUTH]` 🟢 YOU BUILD — the core of Phase 4
+## 4.2 App authentication `[GH:AUTH]` 🟡 PASTE & REVIEW (was 🟢) — the core of Phase 4
 
 `src/adapters/app/auth.ts`, using **only `node:crypto`** (no auth library: you're learning the flow):
 
@@ -44,7 +44,7 @@ Render, the server verifies it, authenticates as the App installation, reads the
 **Learn:** the two identities (App vs installation); why the JWT is short-lived; what a down-scoped token buys.
 **Then (optional):** compare with `@octokit/auth-app` and note in LEARNING.md what it does for you.
 
-## 4.3 Webhook endpoint `[GH:WEBHOOK]` 🟢 YOU BUILD
+## 4.3 Webhook endpoint `[GH:WEBHOOK]` 🟡 PASTE & REVIEW (was 🟢)
 
 `src/adapters/app/server.ts` (Hono):
 

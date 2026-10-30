@@ -9,6 +9,7 @@ code computes the verdict (blocking finding ⇒ fail). One core engine, two deli
 
 1. Open `docs/specs/phaseN.md`, paste the kickoff prompt into Claude Code (plan mode).
 2. For each sub-task, check its **mode** (🟢 you build · 🟡 paste & review · ⚪ Claude builds · 🔧 manual config).
+   As of 2026-10-30 every 🟢 sub-task is done as 🟡 PASTE & REVIEW (marked `🟢→🟡` in PROGRESS.md).
 3. Build it in that mode. Run it. Try to break it.
 4. **Explain back:** 3–5 lines in `LEARNING.md` in your own words. Answer the phase's interview questions out loud.
 5. Commit, one per sub-task (`feat(loop): add stuck detection`).
