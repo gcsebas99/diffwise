@@ -3,7 +3,7 @@
 | Sub-task | Mode | Done | What I learned (one line) |
 |---|---|---|---|
 | 1.1 Scaffold | ⚪ | 2026-10-29 | Env config is parsed with Zod at startup and fails loudly, naming the variable but never echoing its value. |
-| 1.2 Demo repo + rules | 🔧⚪ | | |
+| 1.2 Demo repo + rules | 🔧⚪ | 2026-10-29 | Each seeded branch is a labeled eval case; a clean branch measures false positives and the injection branch pairs with a real violation so "pass" can't hide it. |
 | 1.3 Rules loader | 🟡 | | |
 | 1.4 Diff model | 🟡 | | |
 | 1.5 Tools & registry | 🟢 | | |
