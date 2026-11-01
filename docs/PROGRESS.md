@@ -7,7 +7,7 @@
 | 1.3 Rules loader | 🟡 | 2026-10-30 | Config fails loudly at load with every problem named by rule id; globs need dot:true or dotfiles are silently skipped. |
 | 1.4 Diff model | 🟡 | 2026-10-30 | Only new-side lines inside a hunk are commentable; git is called with arg arrays plus -e/--/--end-of-options, pinned to SHAs. |
 | 1.5 Tools & registry | 🟡 | 2026-10-31 | One Zod schema is both the tool's JSON Schema and its validator; tools return errors as values with the fix, and report_finding checks findings against the rules and diff before they can reach GitHub. |
-| 1.6 Prompt assembly | 🟢→🟡 | | |
+| 1.6 Prompt assembly | 🟡 | 2026-10-31 | Stable system prompt first with one cache breakpoint, per-PR data after it; PR text is wrapped and its closing tag escaped, and promptVersion hashes system + tools. |
 | 1.7 Model client | 🟡 | | |
 | 1.8 Agent loop | 🟢→🟡 | | |
 | 1.9 Verdict + CLI | 🟡 | | |
