@@ -1,0 +1,19 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`formatReport > groups findings by file, sorted by line, then verdict and stats 1`] = `
+"
+Findings (3)
+  migrations/002_add_status.sql
+       1  advisory  migration-reversible  No down migration.
+  src/routes/orders.ts
+       3  blocking  route-needs-test  New filter has no test.
+          suggestion: Add a test in test/routes/orders.test.ts.
+       9  blocking  route-needs-test  Second problem.
+
+Summary
+  Adds a status filter without tests.
+
+Verdict: FAIL  (2 blocking, 1 advisory)
+Outcome: completed
+3 steps · 3,749 in (2,549 cache read, 0 cache write) · 300 out · est. $0.0006 · prompt 1c7d2e8afc90"
+`;
