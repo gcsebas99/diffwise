@@ -7,6 +7,7 @@ describe("loadConfig", () => {
     expect(config).toEqual({
       DIFFWISE_MAX_STEPS: 20,
       DIFFWISE_TOKEN_BUDGET: 80_000,
+      DIFFWISE_DEADLINE_SECONDS: 600,
       DIFFWISE_TOOL_OUTPUT_MAX_CHARS: 6_000,
     });
   });

@@ -10,6 +10,7 @@ export const ConfigSchema = z.object({
   DIFFWISE_MODEL: z.string().min(1).optional(),
   DIFFWISE_MAX_STEPS: positiveInt(20),
   DIFFWISE_TOKEN_BUDGET: positiveInt(80_000),
+  DIFFWISE_DEADLINE_SECONDS: positiveInt(600),
   DIFFWISE_TOOL_OUTPUT_MAX_CHARS: positiveInt(6_000),
 });
 

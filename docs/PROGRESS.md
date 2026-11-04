@@ -9,7 +9,7 @@
 | 1.5 Tools & registry | 🟡 | 2026-10-31 | One Zod schema is both the tool's JSON Schema and its validator; tools return errors as values with the fix, and report_finding checks findings against the rules and diff before they can reach GitHub. |
 | 1.6 Prompt assembly | 🟡 | 2026-10-31 | Stable system prompt first with one cache breakpoint, per-PR data after it; PR text is wrapped and its closing tag escaped, and promptVersion hashes system + tools. |
 | 1.7 Model client | 🟡 | 2026-11-03 | The loop talks to a ModelClient interface (Anthropic or Scripted); the SDK retries 408/409/429/5xx with backoff and fails fast on 4xx; total input = uncached + cache read + cache write. |
-| 1.8 Agent loop | 🟢→🟡 | | |
+| 1.8 Agent loop | 🟡 | 2026-11-03 | think → act → observe with 7 explicit exits; every tool_use gets a paired tool_result (results first, nudges after); findings survive early exits, and only `completed` is complete. |
 | 1.9 Verdict + CLI | 🟡 | | |
 | 2.1 GitHubClient + publisher | 🟡 | | |
 | 2.2 Action adapter | 🟢→🟡 | | |
