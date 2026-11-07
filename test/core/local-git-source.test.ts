@@ -82,6 +82,6 @@ describe("LocalGitSource", () => {
       matches: [],
       truncated: false,
     });
-    await expect(source.search("(")).rejects.toThrow(/parentheses/);
+    await expect(source.search("(")).rejects.toThrow(/fatal: -e option/);
   });
 });

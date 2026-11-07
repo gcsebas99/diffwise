@@ -11,7 +11,7 @@
 | 1.7 Model client | 🟡 | 2026-11-03 | The loop talks to a ModelClient interface (Anthropic or Scripted); the SDK retries 408/409/429/5xx with backoff and fails fast on 4xx; total input = uncached + cache read + cache write. |
 | 1.8 Agent loop | 🟡 | 2026-11-03 | think → act → observe with 7 explicit exits; every tool_use gets a paired tool_result (results first, nudges after); findings survive early exits, and only `completed` is complete. |
 | 1.9 Verdict + CLI | 🟡 | 2026-11-04 | Code turns findings into the verdict (blocking → fail, incomplete → neutral, never pass); exit 0/1/2 separates pass, fail and "could not run"; six live runs matched expectations for ~$0.003. |
-| 2.1 GitHubClient + publisher | 🟡 | | |
+| 2.1 GitHubClient + publisher | 🟡 | 2026-11-07 | Review logic talks to a 4-method GitHubClient (Octokit or fake); each run posts one COMMENT review pinned to the head SHA, then marks the previous bot review outdated; model text is escaped for markdown where it lands. |
 | 2.2 Action adapter | 🟢→🟡 | | |
 | 2.3 Package action | ⚪ | | |
 | 2.4 Demo workflow | 🟢→🟡 | | |
