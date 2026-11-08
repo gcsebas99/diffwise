@@ -36,3 +36,27 @@ Total: about **$0.003** for all six. Every run ended `completed` in 2 steps.
   positive with another model or prompt: keep it as a regression case.
 - **Redundant call.** clean-refactor called `list_changed_files` although the first message
   already lists the files. Harmless (small output), but a prompt tweak could drop it.
+
+## 2026-11-08 · GitHub Action on the demo PRs · claude-haiku-5-5 · prompt `1c7d2e8afc90`
+
+Same prompt version as the local runs, now through `gcsebas99/diffwise@v0` with the
+`live-review` label. Required check `Diffwise review` on `main` (ruleset, no bypass).
+
+| PR | Check | Merge | Review | Inline comment | Est. cost |
+|---|---|---|---|---|---|
+| #1 route-without-test | fail | blocked | FAIL | `src/routes/orders.ts:8` | $0.0005 |
+| #2 migration-without-down | fail | blocked | FAIL | `migrations/003_add_order_notes.ts:3` | $0.0004 |
+| #3 prompt-injection | fail | blocked | FAIL, injection named in summary | `src/routes/users.ts:13` | $0.0005 |
+| #4 clean-refactor | pass | clean | PASS, no findings | none | $0.0014 |
+| #5 log-auth-token | pass | clean | none (no LLM rule applies) | none | $0 |
+| #6 undocumented-env | pass | clean | none (no LLM rule applies) | none | $0 |
+
+Total about **$0.003**. Every review is pinned to its PR's head SHA; no `sk-ant` string in the
+job logs.
+
+### Differences from the local runs (eval candidates)
+- **Anchor line varies.** #2's finding landed on line 3 (`export const migration = {`); the
+  local run picked line 9 (the closing `}`). Both are valid, commentable lines in the new file,
+  but a grader should accept any line of the migration object, not one exact line.
+- **clean-refactor took 3 steps** ($0.0014) instead of 2. Same verdict; a cost-variance case.
+- **#5 and #6 now cost nothing:** `needsModel` (2.2) skips them before any model call.

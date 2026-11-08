@@ -14,8 +14,8 @@
 | 2.1 GitHubClient + publisher | 🟡 | 2026-11-07 | Review logic talks to a 4-method GitHubClient (Octokit or fake); each run posts one COMMENT review pinned to the head SHA, then marks the previous bot review outdated; model text is escaped for markdown where it lands. |
 | 2.2 Action adapter | 🟢→🟡 | 2026-11-07 | One engine shared by CLI and Action; PR number and SHAs come from the validated event payload (not GITHUB_SHA); the model runs only when opted in and needed; findings land in annotations + job summary before the review is posted, and setFailed on fail is the check. |
 | 2.3 Package action | ⚪ | 2026-11-07 | A JavaScript action runs dist/index.js straight from the tagged repo with no install, so everything is bundled (esbuild, ESM + createRequire banner) and CI fails when dist/ is stale. |
-| 2.4 Demo workflow | 🟢→🟡 | | |
-| 2.5 Repo setup | 🔧 | | |
+| 2.4 Demo workflow | 🟢→🟡 | 2026-11-07 | pull_request (never _target) + least-privilege permissions; the label gate decides cost, and no job-level if: because a skipped job counts as a passing required check. |
+| 2.5 Repo setup | 🔧 | 2026-11-08 | Secrets for keys, variables for config; a ruleset with an empty bypass list makes the check binding even for admins; gh and git can be logged in as different accounts. |
 | 2.6 Demo polish | ⚪ | | |
 | 3.1 Deterministic checks | 🟡 | | |
 | 3.2 Record / replay | 🟡 | | |
