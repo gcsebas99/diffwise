@@ -2,14 +2,9 @@ import { join } from "node:path";
 import { Command, Option } from "commander";
 import { formatEvent, formatReport } from "./cli-format.js";
 import { loadConfig, requireLiveConfig } from "./config.js";
-import { estimateCost } from "./core/cost.js";
+import { needsModel, reviewChanges } from "./core/engine.js";
 import { LocalGitSource } from "./core/local-git-source.js";
-import { runReview } from "./core/loop.js";
-import { buildInitialMessage, buildSystemPrompt } from "./core/prompt.js";
-import { createReviewState } from "./core/review.js";
 import { loadRules } from "./core/rules.js";
-import { createDefaultRegistry } from "./core/tools/index.js";
-import { computeVerdict } from "./core/verdict.js";
 import { AnthropicModel } from "./model/anthropic.js";
 
 // CI reads exit codes, so a setup error (bad config, rules, refs) must not look like a failed
@@ -44,39 +39,27 @@ program
       return;
     }
 
+    if (!needsModel(rules, files)) {
+      console.log("No changed file has a rule for the model to check; nothing to review.");
+      return;
+    }
+
     const color = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
     const range = `${opts.base}...${opts.head}`;
     console.log(`Reviewing ${range}: ${files.length} files, model ${config.DIFFWISE_MODEL}`);
 
-    const model = new AnthropicModel({
-      apiKey: config.ANTHROPIC_API_KEY,
-      model: config.DIFFWISE_MODEL,
-    });
-    const run = await runReview({
-      model,
-      registry: createDefaultRegistry(),
-      ctx: {
-        source,
-        rules,
-        files,
-        maxOutputChars: config.DIFFWISE_TOOL_OUTPUT_MAX_CHARS,
-        state: createReviewState(),
-      },
-      system: buildSystemPrompt(rules),
-      initialMessage: buildInitialMessage({ files, rules }),
-      limits: {
-        maxSteps: config.DIFFWISE_MAX_STEPS,
-        tokenBudget: config.DIFFWISE_TOKEN_BUDGET,
-        deadlineMs: config.DIFFWISE_DEADLINE_SECONDS * 1000,
-      },
+    const { run, verdict, cost } = await reviewChanges({
+      source,
+      rules,
+      files,
+      model: new AnthropicModel({ apiKey: config.ANTHROPIC_API_KEY, model: config.DIFFWISE_MODEL }),
+      modelName: config.DIFFWISE_MODEL,
+      config,
       onEvent: (event) => {
         const line = formatEvent(event, color);
         if (line) console.log(line);
       },
     });
-
-    const verdict = computeVerdict(run.findings, run.complete);
-    const cost = estimateCost(config.DIFFWISE_MODEL, run.usage);
     console.log(formatReport(run, verdict, cost, color));
     if (verdict.verdict === "neutral") {
       console.error("warning: the review did not finish, so the verdict is neutral");
