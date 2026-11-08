@@ -1,0 +1,37 @@
+name: Diffwise
+description: AI agent that reviews pull requests against rules in .review-rules.yaml
+author: gcsebas99
+
+inputs:
+  mode:
+    description: >
+      `live` runs the model on rules with `check: llm`; `deterministic-only` skips the model
+      (no cost). Gate `live` on a maintainer-added label in your workflow.
+    required: false
+    default: deterministic-only
+  anthropic-api-key:
+    description: Anthropic API key, from a secret. Required in live mode. Never logged.
+    required: false
+  model:
+    description: Claude model ID, e.g. from a DIFFWISE_MODEL repository variable. Required in live mode.
+    required: false
+  github-token:
+    description: >
+      Token used to post the review. Needs `pull-requests: write`, set in the workflow's
+      `permissions:` block.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  verdict:
+    description: pass, fail or neutral
+  review-url:
+    description: URL of the posted review (live mode only)
+
+runs:
+  using: node24
+  main: dist/index.js
+
+branding:
+  icon: check-circle
+  color: purple

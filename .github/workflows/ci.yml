@@ -22,3 +22,12 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      # The action runs dist/index.js from the repo, so a stale bundle ships old code.
+      - name: Check dist/ is up to date
+        run: |
+          pnpm build:action
+          if [ -n "$(git status --porcelain -- dist/)" ]; then
+            echo "::error::dist/ is stale. Run 'pnpm build:action' and commit the result."
+            git diff --stat -- dist/
+            exit 1
+          fi

@@ -1,5 +1,5 @@
 node_modules/
-dist/
+# dist/ is committed: the action runs dist/index.js straight from the repo.
 coverage/
 .env
 .env.*
