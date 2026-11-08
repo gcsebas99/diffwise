@@ -60,3 +60,16 @@ job logs.
   but a grader should accept any line of the migration object, not one exact line.
 - **clean-refactor took 3 steps** ($0.0014) instead of 2. Same verdict; a cost-variance case.
 - **#5 and #6 now cost nothing:** `needsModel` (2.2) skips them before any model call.
+
+## 2026-11-08 · 3.1 deterministic checks on the demo PRs · `v0` = `d4ed0bd`
+
+Re-ran #5 and #6 after moving `v0`. Both have `live-review`, but no changed file has an LLM rule,
+so the engine made no model call.
+
+| PR | Before 3.1 | After 3.1 | Findings | Est. cost |
+|---|---|---|---|---|
+| #5 log-auth-token | pass (known gap) | **fail, merge blocked** | `no-secrets-in-diff` @ `src/auth.ts:28` (`token`), `:31` (`authorization`) | $0 |
+| #6 undocumented-env | pass, no review | **pass + advisory** | `env-documented` @ `src/rate-limit.ts:5` (`RATE_LIMIT_PER_MIN`) | $0 |
+
+All six demo PRs now match the expectations in `docs/PLAN.md`. Before the 3.1 commit, the same
+checks ran locally against all six branches: 0 findings on the other four (no false positives).
