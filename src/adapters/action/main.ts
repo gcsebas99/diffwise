@@ -61,41 +61,20 @@ async function review(io: ActionIO, deps: ActionDeps): Promise<void> {
 
   // [HARNESS:GUARD] Cost gate: no model call unless the PR opted in and something needs it.
   // WHY: on a public repo anyone can open PRs; a maintainer-added label decides when to pay,
-  //      and PRs that touch no LLM-checked file never pay at all.
-  const skipReason =
-    mode === "deterministic-only"
-      ? "LLM rules were skipped: add the `live-review` label to run them."
-      : !needsModel(rules, files)
-        ? "No changed file has a rule for the model to check."
-        : undefined;
-  if (skipReason) {
-    io.info(skipReason);
-    io.setOutput("verdict", "pass");
-    await io.writeSummary(`## Diffwise: ✅ PASS\n\n${skipReason}`);
-    return;
-  }
+  //      and PRs that touch no LLM-checked file never pay at all. The free checks always run.
+  const useModel = mode === "live" && needsModel(rules, files);
+  const live = useModel ? liveModel(io, deps, ctx, config.DIFFWISE_MODEL) : undefined;
 
-  const apiKey = io.getInput("anthropic-api-key");
-  if (!apiKey) {
-    throw new Error(
-      ctx.fromFork
-        ? "anthropic-api-key is empty: PRs from forks don't receive secrets, so live mode can't run."
-        : "anthropic-api-key is empty: add an ANTHROPIC_API_KEY secret and pass it to the action.",
-    );
-  }
-  io.setSecret(apiKey); // already masked when it comes from a secret; this costs nothing
-  const model = io.getInput("model") || config.DIFFWISE_MODEL;
-  if (!model) throw new Error("input 'model' is empty (set the DIFFWISE_MODEL variable)");
-  const token = io.getInput("github-token");
-  if (!token) throw new Error("input 'github-token' is empty");
-
-  io.info(`Reviewing ${files.length} files at ${ctx.headSha.slice(0, 7)} with ${model}`);
+  io.info(
+    live
+      ? `Reviewing ${files.length} files at ${ctx.headSha.slice(0, 7)} with ${live.name}`
+      : `Running deterministic checks on ${files.length} files at ${ctx.headSha.slice(0, 7)}`,
+  );
   const outcome = await reviewChanges({
     source,
     rules,
     files,
-    model: deps.createModel(apiKey, model),
-    modelName: model,
+    ...(live ? { model: live.client, modelName: live.name } : {}),
     config,
     pr: { title: ctx.title, body: ctx.body },
     onEvent: (event) => {
@@ -104,6 +83,7 @@ async function review(io: ActionIO, deps: ActionDeps): Promise<void> {
     },
   });
   const { run: result, verdict } = outcome;
+  const model = live?.name ?? "none";
 
   // Results first, publish last: if posting the review fails, the job log, annotations and
   // summary still show what the review found.
@@ -111,10 +91,14 @@ async function review(io: ActionIO, deps: ActionDeps): Promise<void> {
     const annotate = f.severity === "blocking" ? io.error : io.warning;
     annotate.call(io, f.message, { title: f.ruleId, file: f.path, startLine: f.line });
   }
-  const summary = formatSummary({ ...outcome, model });
-  await io.writeSummary(summary);
+  await io.writeSummary(formatSummary({ ...outcome, model }));
   io.setOutput("verdict", verdict.verdict);
 
+  // A checks-only run with nothing to say posts no review: one per push would be noise.
+  if (outcome.modelSkipped && result.findings.length === 0) return;
+
+  const token = io.getInput("github-token");
+  if (!token) throw new Error("input 'github-token' is empty");
   const pr = { owner: ctx.owner, repo: ctx.repo, number: ctx.number };
   const github = deps.createGitHub(token);
   const published = await publishReview(github, pr, { ...outcome, model, commitId: ctx.headSha });
@@ -129,4 +113,25 @@ async function review(io: ActionIO, deps: ActionDeps): Promise<void> {
       `${verdict.counts.blocking} blocking finding(s). See the review: ${published.url}`,
     );
   }
+}
+
+// Read and check the live-mode inputs; only called when the model will actually run.
+function liveModel(
+  io: ActionIO,
+  deps: ActionDeps,
+  ctx: ActionContext,
+  fallbackModel: string | undefined,
+): { client: ModelClient; name: string } {
+  const apiKey = io.getInput("anthropic-api-key");
+  if (!apiKey) {
+    throw new Error(
+      ctx.fromFork
+        ? "anthropic-api-key is empty: PRs from forks don't receive secrets, so live mode can't run."
+        : "anthropic-api-key is empty: add an ANTHROPIC_API_KEY secret and pass it to the action.",
+    );
+  }
+  io.setSecret(apiKey); // already masked when it comes from a secret; this costs nothing
+  const name = io.getInput("model") || fallbackModel;
+  if (!name) throw new Error("input 'model' is empty (set the DIFFWISE_MODEL variable)");
+  return { client: deps.createModel(apiKey, name), name };
 }

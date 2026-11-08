@@ -1,5 +1,6 @@
 import type { GitHubClient, PrRef, ReviewComment } from "../adapters/github/client.js";
 import { totalInputTokens } from "../model/types.js";
+import type { ModelSkipped } from "./engine.js";
 import type { ReviewRun } from "./loop.js";
 import type { Finding } from "./review.js";
 import type { VerdictResult } from "./verdict.js";
@@ -14,6 +15,7 @@ export interface PublishInput {
   verdict: VerdictResult;
   model: string;
   cost: number | undefined;
+  modelSkipped?: ModelSkipped; // only the deterministic checks ran
 }
 
 // [HARNESS:GUARD] Model text is untrusted in markdown too: it can quote the PR it reviewed.
@@ -39,10 +41,20 @@ export function formatComment(finding: Finding): string {
   return lines.join("\n");
 }
 
-export function formatSummary({ run, verdict, model, cost }: PublishInput): string {
+// A checks-only pass must say what wasn't checked, or it reads as "the model found nothing".
+const SKIPPED_NOTE: Record<ModelSkipped, string> = {
+  "deterministic-only":
+    "Only the automated checks ran. LLM rules were **not checked**: add the `live-review` label to run them.",
+  "no-llm-rules":
+    "Only the automated checks ran: no changed file has a rule for the model to check.",
+};
+
+export function formatSummary(input: PublishInput): string {
+  const { run, verdict, model, cost, modelSkipped } = input;
   const { blocking, advisory } = verdict.counts;
   const lines = [MARKER, `## Diffwise: ${HEADLINE[verdict.verdict]}`, ""];
   lines.push(`**${blocking} blocking**, ${advisory} advisory`);
+  if (modelSkipped) lines.push("", "> [!NOTE]", `> ${SKIPPED_NOTE[modelSkipped]}`);
 
   if (!run.complete) {
     lines.push(
@@ -61,11 +73,17 @@ export function formatSummary({ run, verdict, model, cost }: PublishInput): stri
     }
   }
 
-  lines.push("", "### Summary", "", run.summary ? sanitize(run.summary) : "_No summary._");
+  if (!modelSkipped) {
+    lines.push("", "### Summary", "", run.summary ? sanitize(run.summary) : "_No summary._");
+  }
 
   // [HARNESS:OBS] Every review states how it was produced: model, prompt version, effort, cost.
   // WHY: when a reviewer asks "why did it say that?", the footer says which model and prompt
   //      to replay, and a cost jump after a prompt change is visible on the PR itself.
+  if (modelSkipped) {
+    lines.push("", "<sub>automated checks only · no model call · $0</sub>");
+    return lines.join("\n");
+  }
   const usage = run.usage;
   const stats = [
     model,

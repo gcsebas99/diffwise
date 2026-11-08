@@ -141,6 +141,20 @@ describe("formatSummary", () => {
   });
 });
 
+describe("formatSummary for a checks-only run", () => {
+  it("says the LLM rules were not checked and that no model ran", () => {
+    const body = formatSummary({
+      ...input({ findings: [], summary: "Only the automated checks ran.", steps: 0 }),
+      modelSkipped: "deterministic-only",
+    });
+    expect(body).toContain("✅ PASS");
+    expect(body).toContain("> [!NOTE]");
+    expect(body).toContain("LLM rules were **not checked**: add the `live-review` label");
+    expect(body).not.toContain("### Summary");
+    expect(body).toContain("<sub>automated checks only · no model call · $0</sub>");
+  });
+});
+
 describe("sanitize", () => {
   it("breaks @mentions and shows HTML as text", () => {
     expect(sanitize("ping @org/team and @sebas")).toBe("ping @​org/team and @​sebas");

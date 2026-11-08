@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { Command, Option } from "commander";
 import { formatEvent, formatReport } from "./cli-format.js";
 import { loadConfig, requireLiveConfig } from "./config.js";
-import { needsModel, reviewChanges } from "./core/engine.js";
+import { reviewChanges } from "./core/engine.js";
 import { LocalGitSource } from "./core/local-git-source.js";
 import { loadRules } from "./core/rules.js";
 import { AnthropicModel } from "./model/anthropic.js";
@@ -36,11 +36,6 @@ program
     const files = await source.diff();
     if (files.length === 0) {
       console.log(`No changes between ${opts.base} and ${opts.head}; nothing to review.`);
-      return;
-    }
-
-    if (!needsModel(rules, files)) {
-      console.log("No changed file has a rule for the model to check; nothing to review.");
       return;
     }
 

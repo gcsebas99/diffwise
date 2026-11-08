@@ -123,6 +123,10 @@ Outputs: `verdict` (`pass` / `fail` / `neutral`) and `review-url`.
   tools and code-validated findings.
 - **The bot never approves.** The review type only allows `COMMENT`; pass or fail is the
   required check.
+- **Deterministic first.** Secrets and undocumented env vars are found by code on every PR, free
+  and without the label; the model can't remove those findings. Secret findings name the kind
+  and length, never the value. (In live mode the model still reads the diff, so a committed
+  secret does reach the model provider: redaction protects Diffwise's outputs, not its input.)
 - **Model output is escaped where it lands:** mentions are broken, HTML is shown as text.
 - **Cost is opt-in twice:** the `live-review` label (triage access or higher) and a skip when no
   changed file has an LLM rule. Each review prints its model, prompt version, tokens and

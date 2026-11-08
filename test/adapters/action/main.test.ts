@@ -12,7 +12,12 @@ import { RULES_YAML } from "../../fakes/tool-context.js";
 
 // A throwaway checkout like the one actions/checkout leaves: main → route change, main → docs.
 let workspace: string;
-const sha: Record<"base" | "route" | "docs", string> = { base: "", route: "", docs: "" };
+const sha: Record<"base" | "route" | "docs" | "leak", string> = {
+  base: "",
+  route: "",
+  docs: "",
+  leak: "",
+};
 const git = (...args: string[]) =>
   execFileSync("git", ["-C", workspace, ...args], { encoding: "utf8" }).trim();
 const write = (path: string, text: string) => {
@@ -39,6 +44,10 @@ beforeAll(() => {
   write("README.md", "# demo\n\nMore docs.\n");
   git("commit", "-qam", "docs");
   sha.docs = git("rev-parse", "HEAD");
+  git("switch", "-q", "-c", "leak", "main");
+  write("README.md", "# demo\n\nlogger.info({ token });\n");
+  git("commit", "-qam", "leak");
+  sha.leak = git("rev-parse", "HEAD");
 });
 
 // Records everything the action tells the runner.
@@ -170,11 +179,20 @@ describe("action run", () => {
     expect(t.io.failed).toBeUndefined();
   });
 
+  it("fails on a deterministic finding in deterministic-only mode, without the model", async () => {
+    const t = setup({ inputs: { "github-token": "ghs-test" }, head: sha.leak });
+    await t.start();
+    expect(t.created).toEqual({ model: 0, github: 1 });
+    expect(t.github.reviews[0]?.comments).toMatchObject([{ path: "README.md", line: 3 }]);
+    expect(t.io.summaries[0]).toContain("automated checks only · no model call · $0");
+    expect(t.io.failed).toMatch(/^1 blocking finding\(s\)/);
+  });
+
   it("skips the model when no changed file has an LLM rule, even in live mode", async () => {
     const t = setup({ head: sha.docs });
     await t.start();
     expect(t.created).toEqual({ model: 0, github: 0 });
-    expect(t.io.summaries[0]).toContain("No changed file has a rule for the model to check.");
+    expect(t.io.summaries[0]).toContain("no changed file has a rule for the model to check");
   });
 
   it("explains a missing API key on a fork PR without calling the model", async () => {

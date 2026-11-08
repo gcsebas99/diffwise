@@ -63544,7 +63544,7 @@ var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
       inst._zod.run = inst._zod.parse;
     });
   } else {
-    const runChecks = (payload, checks2, ctx) => {
+    const runChecks2 = (payload, checks2, ctx) => {
       if (payload.memo)
         return payload;
       let isAborted = aborted(payload);
@@ -63595,7 +63595,7 @@ var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
         canary.aborted = true;
         return canary;
       }
-      const checkResult = runChecks(payload, checks, ctx);
+      const checkResult = runChecks2(payload, checks, ctx);
       if (checkResult instanceof Promise) {
         if (ctx.async === false)
           throw new $ZodAsyncError();
@@ -63620,9 +63620,9 @@ var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
       if (result instanceof Promise) {
         if (ctx.async === false)
           throw new $ZodAsyncError();
-        return result.then((result2) => runChecks(result2, checks, ctx));
+        return result.then((result2) => runChecks2(result2, checks, ctx));
       }
-      return runChecks(result, checks, ctx);
+      return runChecks2(result, checks, ctx);
     };
   }
 }, {
@@ -80751,24 +80751,6 @@ ${problems}`);
   return result.data;
 }
 
-// src/core/cost.ts
-var PRICES = {
-  "claude-haiku-4-5": { input: 1, cacheWrite: 1.25, cacheRead: 0.1, output: 5 },
-  // Haiku 5.5 costs 5x more above 100k prompt tokens; one review request stays far below that.
-  "claude-haiku-5-5": { input: 0.1, cacheWrite: 0.125, cacheRead: 0.01, output: 0.5 },
-  "claude-sonnet-5-5": { input: 2, cacheWrite: 2.5, cacheRead: 0.1, output: 10 },
-  "claude-opus-5-5": { input: 4, cacheWrite: 5, cacheRead: 0.2, output: 20 }
-};
-function estimateCost(model, usage) {
-  const price = PRICES[model];
-  if (!price) return void 0;
-  const dollars = usage.inputTokens * price.input + usage.cacheWriteTokens * price.cacheWrite + usage.cacheReadTokens * price.cacheRead + usage.outputTokens * price.output;
-  return dollars / 1e6;
-}
-
-// src/core/prompt.ts
-import { createHash } from "node:crypto";
-
 // src/core/rules.ts
 var import_picomatch = __toESM(require_picomatch2(), 1);
 var import_yaml = __toESM(require_dist2(), 1);
@@ -80908,7 +80890,160 @@ function rulesForFile(ruleSet, path4) {
   return ruleSet.rules.filter((rule) => ruleSet.matchers.get(rule.id)?.(normalized) === true);
 }
 
+// src/checks/types.ts
+function* addedLines(files) {
+  for (const file2 of files) {
+    for (const hunk of file2.hunks) {
+      for (const l of hunk.lines) {
+        if (l.kind === "add") yield { path: file2.path, line: l.newLine, content: l.content };
+      }
+    }
+  }
+}
+
+// src/checks/env-documented.ts
+var ENV_FILE = ".env.example";
+var ENV_REF = /process\.env(?:\.([A-Za-z_]\w*)|\[\s*["']([A-Za-z_]\w*)["']\s*\])/g;
+var DOCUMENTED = /^\s*#?\s*(?:export\s+)?([A-Za-z_]\w*)\s*=/;
+var ALWAYS_KNOWN = /* @__PURE__ */ new Set(["NODE_ENV"]);
+async function documentedNames(read) {
+  const text = await read(ENV_FILE);
+  if (text === void 0) return void 0;
+  const names = /* @__PURE__ */ new Set();
+  for (const line of text.split("\n")) {
+    const name = DOCUMENTED.exec(line)?.[1];
+    if (name) names.add(name);
+  }
+  return names;
+}
+var envDocumentedCheck = {
+  name: "env-documented",
+  async run({ files, source }) {
+    const documented = await documentedNames((path4) => source.readFile(path4));
+    const reported = /* @__PURE__ */ new Set();
+    const hits = [];
+    for (const { path: path4, line, content } of addedLines(files)) {
+      for (const match of content.matchAll(ENV_REF)) {
+        const name = match[1] ?? match[2] ?? "";
+        if (ALWAYS_KNOWN.has(name) || documented?.has(name) || reported.has(name)) continue;
+        reported.add(name);
+        const where = documented === void 0 ? `the repo has no ${ENV_FILE}` : `it isn't listed in ${ENV_FILE}`;
+        hits.push({
+          path: path4,
+          line,
+          message: `\`${name}\` is read here but ${where}, so someone setting up the app won't know it exists.`,
+          suggestion: `Add \`${name}=\` to ${ENV_FILE} with a safe example value or a comment.`
+        });
+      }
+    }
+    return hits;
+  }
+};
+
+// src/checks/secrets.ts
+var PATTERNS = [
+  { kind: "AWS access key ID", regex: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, shownPrefix: "AKIA" },
+  {
+    kind: "GitHub token",
+    regex: /\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})/g,
+    shownPrefix: "gh"
+  },
+  { kind: "Anthropic API key", regex: /\bsk-ant-[A-Za-z0-9_-]{20,}/g, shownPrefix: "sk-ant-" },
+  {
+    kind: "private key",
+    regex: /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/g,
+    shownPrefix: "",
+    headerOnly: true
+  },
+  {
+    kind: "hardcoded password",
+    regex: /\b(?:password|passwd|pwd)\s*[:=]\s*(["'])([^"'\s]{4,})\1/gi,
+    shownPrefix: "",
+    valueGroup: 2
+  }
+];
+var PLACEHOLDER = /x{4,}|\*{4,}|<[^>]*>|\$\{|example|placeholder|changeme|dummy|redacted|your[-_]/i;
+function describe3(pattern, value) {
+  if (pattern.headerOnly) return pattern.kind;
+  const shown = pattern.shownPrefix ? `${pattern.shownPrefix}\u2026, ` : "";
+  return `${pattern.kind} (${shown}${value.length} chars)`;
+}
+var LOG_CALL = /\b(?:logger|log|console)\s*\.\s*(?:trace|debug|info|warn|error|log|fatal)\s*\(/;
+var SENSITIVE_NAME = /\b\w*(?:token|secret|password|passwd|authorization|api_?key|credential|cookie)\w*\b/i;
+var STRING_LITERAL = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
+function loggedSecret(content) {
+  const call = LOG_CALL.exec(content);
+  if (!call) return void 0;
+  const args = content.slice(call.index + call[0].length).replace(STRING_LITERAL, '""');
+  return SENSITIVE_NAME.exec(args)?.[0];
+}
+var secretsCheck = {
+  name: "secrets",
+  async run({ files }) {
+    const hits = [];
+    for (const { path: path4, line, content } of addedLines(files)) {
+      const before = hits.length;
+      for (const pattern of PATTERNS) {
+        for (const match of content.matchAll(pattern.regex)) {
+          const value = match[pattern.valueGroup ?? 0] ?? match[0];
+          if (PLACEHOLDER.test(value)) continue;
+          hits.push({
+            path: path4,
+            line,
+            message: `Possible secret: ${describe3(pattern, value)}. Anything committed stays in git history.`,
+            suggestion: "Remove it, rotate the credential, and load it from a secret store or env var."
+          });
+        }
+      }
+      if (hits.length > before) continue;
+      const name = loggedSecret(content);
+      if (name) {
+        hits.push({
+          path: path4,
+          line,
+          message: `\`${name}\` looks like a credential and is passed to a logger. Logs are kept and shipped to other tools, so the value leaks there.`,
+          suggestion: "Drop the field, or log something safe instead (e.g. whether it was present)."
+        });
+      }
+    }
+    return hits;
+  }
+};
+
+// src/checks/index.ts
+var CHECKS = {
+  secrets: secretsCheck,
+  "env-documented": envDocumentedCheck
+};
+async function runChecks(rules, files, source) {
+  const findings = [];
+  for (const rule of rules.rules) {
+    if (rule.check.kind !== "deterministic") continue;
+    const scoped = files.filter((file2) => rulesForFile(rules, file2.path).includes(rule));
+    if (scoped.length === 0) continue;
+    const hits = await CHECKS[rule.check.name].run({ files: scoped, source });
+    findings.push(...hits.map((hit) => ({ ...hit, ruleId: rule.id, severity: rule.severity })));
+  }
+  return findings;
+}
+
+// src/core/cost.ts
+var PRICES = {
+  "claude-haiku-4-5": { input: 1, cacheWrite: 1.25, cacheRead: 0.1, output: 5 },
+  // Haiku 5.5 costs 5x more above 100k prompt tokens; one review request stays far below that.
+  "claude-haiku-5-5": { input: 0.1, cacheWrite: 0.125, cacheRead: 0.01, output: 0.5 },
+  "claude-sonnet-5-5": { input: 2, cacheWrite: 2.5, cacheRead: 0.1, output: 10 },
+  "claude-opus-5-5": { input: 4, cacheWrite: 5, cacheRead: 0.2, output: 20 }
+};
+function estimateCost(model, usage) {
+  const price = PRICES[model];
+  if (!price) return void 0;
+  const dollars = usage.inputTokens * price.input + usage.cacheWriteTokens * price.cacheWrite + usage.cacheReadTokens * price.cacheRead + usage.outputTokens * price.output;
+  return dollars / 1e6;
+}
+
 // src/core/prompt.ts
+import { createHash } from "node:crypto";
 var ROLE_AND_METHOD = [
   "You are Diffwise, a code reviewer. You review one pull request against the repository's",
   "review rules listed below, and only those rules: no style nits, no advice the rules don't ask for.",
@@ -80978,6 +81113,12 @@ ${wrapUntrusted("pr_description", pr.body)}`);
     `Changed files (${pr.files.length}):
 ${wrapUntrusted("changed_files", shown.join("\n"))}`
   );
+  if (pr.alreadyReported && pr.alreadyReported.length > 0) {
+    const reported = pr.alreadyReported.map((f) => `${f.ruleId} ${f.path}:${f.line}`);
+    parts.push(
+      "Already reported by automated checks (don't report these again):\n" + wrapUntrusted("automated_findings", reported.join("\n"))
+    );
+  }
   parts.push("Follow the method in your instructions and finish with submit_review.");
   return parts.join("\n\n");
 }
@@ -81605,6 +81746,16 @@ function computeVerdict(findings, complete) {
 }
 
 // src/core/engine.ts
+var NO_USAGE = {
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0
+};
+var SKIPPED_SUMMARY = {
+  "deterministic-only": "Only the automated checks ran; LLM rules were not checked.",
+  "no-llm-rules": "Only the automated checks ran: no changed file has a rule for the model to check."
+};
 function needsModel(rules, files) {
   return files.some(
     (file2) => rulesForFile(rules, file2.path).some((rule) => rule.check.kind === "llm")
@@ -81612,18 +81763,28 @@ function needsModel(rules, files) {
 }
 async function reviewChanges(options) {
   const { source, rules, files, config: config2 } = options;
+  const checked = await runChecks(rules, files, source);
+  const modelSkipped = !needsModel(rules, files) ? "no-llm-rules" : !options.model ? "deterministic-only" : void 0;
+  if (modelSkipped || !options.model) {
+    const run3 = {
+      outcome: "completed",
+      complete: true,
+      findings: checked,
+      summary: SKIPPED_SUMMARY[modelSkipped ?? "deterministic-only"],
+      steps: 0,
+      usage: NO_USAGE,
+      promptVersion: "none"
+    };
+    return { run: run3, verdict: computeVerdict(run3.findings, true), cost: 0, modelSkipped };
+  }
+  const state = createReviewState();
+  state.findings.push(...checked);
   const run2 = await runReview({
     model: options.model,
     registry: createDefaultRegistry(),
-    ctx: {
-      source,
-      rules,
-      files,
-      maxOutputChars: config2.DIFFWISE_TOOL_OUTPUT_MAX_CHARS,
-      state: createReviewState()
-    },
+    ctx: { source, rules, files, maxOutputChars: config2.DIFFWISE_TOOL_OUTPUT_MAX_CHARS, state },
     system: buildSystemPrompt(rules),
-    initialMessage: buildInitialMessage({ ...options.pr, files, rules }),
+    initialMessage: buildInitialMessage({ ...options.pr, files, rules, alreadyReported: checked }),
     limits: {
       maxSteps: config2.DIFFWISE_MAX_STEPS,
       tokenBudget: config2.DIFFWISE_TOKEN_BUDGET,
@@ -81634,7 +81795,7 @@ async function reviewChanges(options) {
   return {
     run: run2,
     verdict: computeVerdict(run2.findings, run2.complete),
-    cost: estimateCost(options.modelName, run2.usage)
+    cost: options.modelName ? estimateCost(options.modelName, run2.usage) : void 0
   };
 }
 
@@ -81729,10 +81890,16 @@ function formatComment(finding) {
   if (finding.suggestion) lines.push("", `**Suggestion:** ${sanitize(finding.suggestion)}`);
   return lines.join("\n");
 }
-function formatSummary({ run: run2, verdict, model, cost }) {
+var SKIPPED_NOTE = {
+  "deterministic-only": "Only the automated checks ran. LLM rules were **not checked**: add the `live-review` label to run them.",
+  "no-llm-rules": "Only the automated checks ran: no changed file has a rule for the model to check."
+};
+function formatSummary(input2) {
+  const { run: run2, verdict, model, cost, modelSkipped } = input2;
   const { blocking, advisory } = verdict.counts;
   const lines = [MARKER, `## Diffwise: ${HEADLINE[verdict.verdict]}`, ""];
   lines.push(`**${blocking} blocking**, ${advisory} advisory`);
+  if (modelSkipped) lines.push("", "> [!NOTE]", `> ${SKIPPED_NOTE[modelSkipped]}`);
   if (!run2.complete) {
     lines.push(
       "",
@@ -81748,7 +81915,13 @@ function formatSummary({ run: run2, verdict, model, cost }) {
       lines.push(`| ${ICON[f.severity]} | \`${f.ruleId}\` | ${where} | ${cell(f.message)} |`);
     }
   }
-  lines.push("", "### Summary", "", run2.summary ? sanitize(run2.summary) : "_No summary._");
+  if (!modelSkipped) {
+    lines.push("", "### Summary", "", run2.summary ? sanitize(run2.summary) : "_No summary._");
+  }
+  if (modelSkipped) {
+    lines.push("", "<sub>automated checks only \xB7 no model call \xB7 $0</sub>");
+    return lines.join("\n");
+  }
   const usage = run2.usage;
   const stats = [
     model,
@@ -81811,33 +81984,16 @@ async function review(io2, deps) {
   const rules = await loadRules(join2(ctx.workspace, ".review-rules.yaml"));
   const source = await LocalGitSource.open(ctx.workspace, ctx.baseSha, ctx.headSha);
   const files = await source.diff();
-  const skipReason = mode === "deterministic-only" ? "LLM rules were skipped: add the `live-review` label to run them." : !needsModel(rules, files) ? "No changed file has a rule for the model to check." : void 0;
-  if (skipReason) {
-    io2.info(skipReason);
-    io2.setOutput("verdict", "pass");
-    await io2.writeSummary(`## Diffwise: \u2705 PASS
-
-${skipReason}`);
-    return;
-  }
-  const apiKey = io2.getInput("anthropic-api-key");
-  if (!apiKey) {
-    throw new Error(
-      ctx.fromFork ? "anthropic-api-key is empty: PRs from forks don't receive secrets, so live mode can't run." : "anthropic-api-key is empty: add an ANTHROPIC_API_KEY secret and pass it to the action."
-    );
-  }
-  io2.setSecret(apiKey);
-  const model = io2.getInput("model") || config2.DIFFWISE_MODEL;
-  if (!model) throw new Error("input 'model' is empty (set the DIFFWISE_MODEL variable)");
-  const token = io2.getInput("github-token");
-  if (!token) throw new Error("input 'github-token' is empty");
-  io2.info(`Reviewing ${files.length} files at ${ctx.headSha.slice(0, 7)} with ${model}`);
+  const useModel = mode === "live" && needsModel(rules, files);
+  const live = useModel ? liveModel(io2, deps, ctx, config2.DIFFWISE_MODEL) : void 0;
+  io2.info(
+    live ? `Reviewing ${files.length} files at ${ctx.headSha.slice(0, 7)} with ${live.name}` : `Running deterministic checks on ${files.length} files at ${ctx.headSha.slice(0, 7)}`
+  );
   const outcome = await reviewChanges({
     source,
     rules,
     files,
-    model: deps.createModel(apiKey, model),
-    modelName: model,
+    ...live ? { model: live.client, modelName: live.name } : {},
     config: config2,
     pr: { title: ctx.title, body: ctx.body },
     onEvent: (event) => {
@@ -81846,13 +82002,16 @@ ${skipReason}`);
     }
   });
   const { run: result, verdict } = outcome;
+  const model = live?.name ?? "none";
   for (const f of result.findings) {
     const annotate = f.severity === "blocking" ? io2.error : io2.warning;
     annotate.call(io2, f.message, { title: f.ruleId, file: f.path, startLine: f.line });
   }
-  const summary2 = formatSummary({ ...outcome, model });
-  await io2.writeSummary(summary2);
+  await io2.writeSummary(formatSummary({ ...outcome, model }));
   io2.setOutput("verdict", verdict.verdict);
+  if (outcome.modelSkipped && result.findings.length === 0) return;
+  const token = io2.getInput("github-token");
+  if (!token) throw new Error("input 'github-token' is empty");
   const pr = { owner: ctx.owner, repo: ctx.repo, number: ctx.number };
   const github = deps.createGitHub(token);
   const published = await publishReview(github, pr, { ...outcome, model, commitId: ctx.headSha });
@@ -81866,6 +82025,18 @@ ${skipReason}`);
       `${verdict.counts.blocking} blocking finding(s). See the review: ${published.url}`
     );
   }
+}
+function liveModel(io2, deps, ctx, fallbackModel) {
+  const apiKey = io2.getInput("anthropic-api-key");
+  if (!apiKey) {
+    throw new Error(
+      ctx.fromFork ? "anthropic-api-key is empty: PRs from forks don't receive secrets, so live mode can't run." : "anthropic-api-key is empty: add an ANTHROPIC_API_KEY secret and pass it to the action."
+    );
+  }
+  io2.setSecret(apiKey);
+  const name = io2.getInput("model") || fallbackModel;
+  if (!name) throw new Error("input 'model' is empty (set the DIFFWISE_MODEL variable)");
+  return { client: deps.createModel(apiKey, name), name };
 }
 
 // src/adapters/action/index.ts

@@ -17,7 +17,7 @@
 | 2.4 Demo workflow | 🟢→🟡 | 2026-11-07 | pull_request (never _target) + least-privilege permissions; the label gate decides cost, and no job-level if: because a skipped job counts as a passing required check. |
 | 2.5 Repo setup | 🔧 | 2026-11-08 | Secrets for keys, variables for config; a ruleset with an empty bypass list makes the check binding even for admins; gh and git can be logged in as different accounts. |
 | 2.6 Demo polish | ⚪ | 2026-11-08 | A portfolio README leads with the live demo, the safety model and a concept → file map; the demo repo explains what to look for on each seeded PR. |
-| 3.1 Deterministic checks | 🟡 | | |
+| 3.1 Deterministic checks | 🟡 | 2026-11-08 | Pattern rules run as code before the model, on every PR and for free; secrets are redacted where the message is created; the engine decides when the model is needed, and a checks-only summary says what was not checked. |
 | 3.2 Record / replay | 🟡 | | |
 | 3.3 Eval cases | 🟢→🟡 | | |
 | 3.4 Graders | 🟢→🟡 | | |

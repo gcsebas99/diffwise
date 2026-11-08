@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { FileDiff } from "./diff.js";
+import type { Finding } from "./review.js";
 import { type Rule, type RuleSet, rulesForFile } from "./rules.js";
 
 // Arrays of short lines, not long template literals: a wrapped line can't silently change the text.
@@ -80,6 +81,7 @@ export interface PrContext {
   body?: string;
   files: readonly FileDiff[];
   rules: RuleSet;
+  alreadyReported?: readonly Finding[]; // from the deterministic checks, which ran first
 }
 
 const MAX_FILES_IN_MESSAGE = 50;
@@ -105,6 +107,15 @@ export function buildInitialMessage(pr: PrContext): string {
   parts.push(
     `Changed files (${pr.files.length}):\n${wrapUntrusted("changed_files", shown.join("\n"))}`,
   );
+
+  // Rule id and location only: paths come from the PR, so the list is wrapped like the files.
+  if (pr.alreadyReported && pr.alreadyReported.length > 0) {
+    const reported = pr.alreadyReported.map((f) => `${f.ruleId} ${f.path}:${f.line}`);
+    parts.push(
+      "Already reported by automated checks (don't report these again):\n" +
+        wrapUntrusted("automated_findings", reported.join("\n")),
+    );
+  }
 
   parts.push("Follow the method in your instructions and finish with submit_review.");
   return parts.join("\n\n");
