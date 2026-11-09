@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["src/**", "test/**", "scripts/**", "evals/**", "*.ts", "*.json", "!CONCEPTS.md"]
+    "includes": [
+      "src/**",
+      "test/**",
+      "scripts/**",
+      "evals/**",
+      "*.ts",
+      "*.json",
+      "!CONCEPTS.md",
+      "!evals/fixtures"
+    ]
   },
   "formatter": {
     "enabled": true,

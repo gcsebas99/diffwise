@@ -1,0 +1,13 @@
+id: migration-with-down
+description: >
+  The migration negative: `down` drops the index and the column that `up` created, in reverse
+  order, so the migration is reversible and must not be flagged.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Add order notes
+expect:
+  verdict: pass
+  forbidden:
+    - { rule: migration-reversible }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [migrations, negative]

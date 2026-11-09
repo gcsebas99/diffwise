@@ -1,0 +1,12 @@
+diff --git a/src/auth.ts b/src/auth.ts
+index ea2b5a6..78a7505 100644
+--- a/src/auth.ts
++++ b/src/auth.ts
+@@ -30,6 +30,7 @@ export function requireAuth(secret: string): Middleware {
+       logger.warn("auth rejected", { path: req.path });
+       return { status: 401, body: { error: "unauthorized" } };
+     }
++    logger.debug("auth ok", { userId, token });
+     req.user = { id: userId };
+     return undefined;
+   };

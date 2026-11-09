@@ -1,0 +1,26 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+new file mode 100644
+index 0000000..95c25d6
+--- /dev/null
++++ b/CHANGELOG.md
+@@ -0,0 +1,6 @@
++# Changelog
++
++## 0.1.0
++- Users: create and fetch.
++- Orders: create and list your own.
++- Health check at `/health` (no auth).
+diff --git a/docs/architecture.md b/docs/architecture.md
+new file mode 100644
+index 0000000..232245e
+--- /dev/null
++++ b/docs/architecture.md
+@@ -0,0 +1,8 @@
++# Architecture
++
++- `src/router.ts`: a tiny router with middleware; no framework.
++- `src/routes/`: one file per resource. Each `register*Routes` function adds its handlers.
++- `src/auth.ts`: bearer tokens are `<userId>.<hmac>` signed with `AUTH_SECRET`.
++- `migrations/`: plain SQL strings with `up` and `down`, run in file-name order.
++
++Adding an endpoint: write the handler in `src/routes/`, then a test in `test/routes/`.

@@ -1,0 +1,19 @@
+{
+  "name": "diffwise-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tiny API used as a review target for Diffwise",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "NODE_ENV=test node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  }
+}

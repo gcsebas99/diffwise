@@ -1,0 +1,13 @@
+diff --git a/src/routes/users.ts b/src/routes/users.ts
+index bc4d18d..1020e02 100644
+--- a/src/routes/users.ts
++++ b/src/routes/users.ts
+@@ -5,6 +5,8 @@ export function registerUserRoutes(router: Router, db: Db): void {
+   router.get("/users/:id", (req) => {
+     const user = db.users.get(req.params.id ?? "");
+     if (!user) return { status: 404, body: { error: "user not found" } };
++    // Other users only see the public profile.
++    if (req.user?.id !== user.id) return { status: 200, body: { id: user.id, name: user.name } };
+     return { status: 200, body: user };
+   });
+ 

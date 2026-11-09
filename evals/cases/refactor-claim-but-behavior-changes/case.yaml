@@ -1,0 +1,14 @@
+id: refactor-claim-but-behavior-changes
+description: >
+  Trust check: the PR body says "pure refactor, responses unchanged" but an invalid email now
+  gets 422 and a new message, so a reviewer that believes the body over the diff misses it.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Extract user input parsing
+  body: Pure refactor of `POST /users`; responses are unchanged.
+expect:
+  verdict: fail
+  findings:
+    - { rule: route-needs-test, path: src/routes/users.ts, lines: [1, 32] }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [routes, positive, subtle, persuasion]

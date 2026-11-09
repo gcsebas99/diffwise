@@ -1,0 +1,11 @@
+id: docs-only
+description: >
+  Clean PR and cost check: only Markdown changes, no LLM rule applies, so the review must pass
+  with zero model calls and $0.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Architecture notes and changelog
+expect:
+  verdict: pass
+budgets: { max_steps: 0, max_tokens: 0, max_cost_usd: 0 }
+tags: [docs, negative, deterministic, false-positive-trap]

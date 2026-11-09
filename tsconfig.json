@@ -15,5 +15,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "test", "scripts", "evals", "vitest.config.ts"]
+  "include": ["src", "test", "scripts", "evals", "vitest.config.ts"],
+  "exclude": ["evals/fixtures"]
 }

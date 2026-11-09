@@ -1,0 +1,15 @@
+id: large-pr
+description: >
+  Budget pressure: 24 files (utils, their tests, docs, a correct migration) bury one untested
+  limit in POST /orders; the model must find it without reading files no LLM rule covers.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Shared utilities, order limit, created_at column
+expect:
+  verdict: fail
+  findings:
+    - { rule: route-needs-test, path: src/routes/orders.ts, lines: [4, 22] }
+  forbidden:
+    - { rule: migration-reversible }
+budgets: { max_steps: 12, max_tokens: 70000, max_cost_usd: 0.02 }
+tags: [routes, migrations, large, budget]

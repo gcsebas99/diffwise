@@ -1,0 +1,14 @@
+id: route-no-test
+description: >
+  The basic positive: GET /orders gains a status filter and a new 400 branch, and no test
+  changes, so route-needs-test must fire.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Filter orders by status
+  body: Adds an optional `?status=` query parameter to `GET /orders`.
+expect:
+  verdict: fail
+  findings:
+    - { rule: route-needs-test, path: src/routes/orders.ts, lines: [4, 16] }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [routes, positive, smoke]

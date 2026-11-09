@@ -1,0 +1,24 @@
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..1ed95a5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,18 @@
++# shop-api
++
++## Configuration
++
++Copy `.env.example` to `.env` and fill in real values:
++
++```sh
++AUTH_SECRET=<a long random string>
++ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
++```
++
++To call the API locally, sign a token and send it as a bearer header:
++
++```ts
++const config = { user: "admin", password: "<your-password>" };
++```
++
++Never commit real keys; CI rejects them.

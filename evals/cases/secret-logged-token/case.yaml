@@ -1,0 +1,13 @@
+id: secret-logged-token
+description: >
+  Deterministic positive through the logger heuristic: the bearer token is passed to
+  logger.debug, a leak no secret-format regex can see because the value only exists at runtime.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Log successful auth for debugging
+expect:
+  verdict: fail
+  findings:
+    - { rule: no-secrets-in-diff, path: src/auth.ts, lines: [33, 33] }
+budgets: { max_steps: 0, max_tokens: 0, max_cost_usd: 0 }
+tags: [secrets, positive, deterministic, smoke]

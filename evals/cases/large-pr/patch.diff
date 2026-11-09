@@ -1,0 +1,330 @@
+diff --git a/docs/testing.md b/docs/testing.md
+new file mode 100644
+index 0000000..7ec81ea
+--- /dev/null
++++ b/docs/testing.md
+@@ -0,0 +1,4 @@
++# Testing
++
++`pnpm test` runs every `*.test.ts` with `node --test`. Route tests use `setup()` from
++`test/helpers.ts`, which builds the app with an in-memory database.
+diff --git a/docs/utils.md b/docs/utils.md
+new file mode 100644
+index 0000000..f32303e
+--- /dev/null
++++ b/docs/utils.md
+@@ -0,0 +1,4 @@
++# Utilities
++
++Small, dependency-free helpers in `src/utils/`, each with a test in `test/utils/`.
++Prefer these over ad hoc code in route handlers.
+diff --git a/migrations/003_add_order_created_at.ts b/migrations/003_add_order_created_at.ts
+new file mode 100644
+index 0000000..d178563
+--- /dev/null
++++ b/migrations/003_add_order_created_at.ts
+@@ -0,0 +1,7 @@
++import type { Migration } from "./types.ts";
++
++export const migration: Migration = {
++  id: "003_add_order_created_at",
++  up: "ALTER TABLE orders ADD COLUMN created_at TEXT;",
++  down: "ALTER TABLE orders DROP COLUMN created_at;",
++};
+diff --git a/src/routes/orders.ts b/src/routes/orders.ts
+index 8b99a51..221e882 100644
+--- a/src/routes/orders.ts
++++ b/src/routes/orders.ts
+@@ -1,6 +1,8 @@
+ import type { Db } from "../db.ts";
+ import type { Router } from "../router.ts";
+ 
++const MAX_ORDER_CENTS = 1_000_000;
++
+ export function registerOrderRoutes(router: Router, db: Db): void {
+   router.get("/orders", (req) => {
+     const orders = [...db.orders.values()].filter((o) => o.userId === req.user?.id);
+@@ -15,6 +17,9 @@ export function registerOrderRoutes(router: Router, db: Db): void {
+     if (input.totalCents <= 0) {
+       return { status: 400, body: { error: "totalCents must be positive" } };
+     }
++    if (input.totalCents > MAX_ORDER_CENTS) {
++      return { status: 400, body: { error: "orders over $10,000 need manual review" } };
++    }
+     const order = {
+       id: db.nextId("ord"),
+       userId: req.user?.id ?? "",
+diff --git a/src/utils/arrays.ts b/src/utils/arrays.ts
+new file mode 100644
+index 0000000..d4db05e
+--- /dev/null
++++ b/src/utils/arrays.ts
+@@ -0,0 +1,10 @@
++export function chunk<T>(items: readonly T[], size: number): T[][] {
++  const out: T[][] = [];
++  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
++  return out;
++}
++
++export function uniqueBy<T>(items: readonly T[], key: (item: T) => string): T[] {
++  const seen = new Set<string>();
++  return items.filter((item) => !seen.has(key(item)) && Boolean(seen.add(key(item))));
++}
+diff --git a/src/utils/clock.ts b/src/utils/clock.ts
+new file mode 100644
+index 0000000..bc2a034
+--- /dev/null
++++ b/src/utils/clock.ts
+@@ -0,0 +1,9 @@
++export interface Clock {
++  now(): Date;
++}
++
++export const systemClock: Clock = { now: () => new Date() };
++
++export function fixedClock(iso: string): Clock {
++  return { now: () => new Date(iso) };
++}
+diff --git a/src/utils/dates.ts b/src/utils/dates.ts
+new file mode 100644
+index 0000000..941e145
+--- /dev/null
++++ b/src/utils/dates.ts
+@@ -0,0 +1,7 @@
++export function isoDate(date: Date): string {
++  return date.toISOString().slice(0, 10);
++}
++
++export function addDays(date: Date, days: number): Date {
++  return new Date(date.getTime() + days * 86_400_000);
++}
+diff --git a/src/utils/email.ts b/src/utils/email.ts
+new file mode 100644
+index 0000000..23eaf77
+--- /dev/null
++++ b/src/utils/email.ts
+@@ -0,0 +1,7 @@
++export function normalizeEmail(email: string): string {
++  return email.trim().toLowerCase();
++}
++
++export function emailDomain(email: string): string | undefined {
++  return email.split("@")[1];
++}
+diff --git a/src/utils/ids.ts b/src/utils/ids.ts
+new file mode 100644
+index 0000000..86d0187
+--- /dev/null
++++ b/src/utils/ids.ts
+@@ -0,0 +1,7 @@
++export function isOrderId(id: string): boolean {
++  return /^ord_\d+$/.test(id);
++}
++
++export function isUserId(id: string): boolean {
++  return /^usr_\d+$/.test(id);
++}
+diff --git a/src/utils/money.ts b/src/utils/money.ts
+new file mode 100644
+index 0000000..d015193
+--- /dev/null
++++ b/src/utils/money.ts
+@@ -0,0 +1,7 @@
++export function formatCents(cents: number, currency = "USD"): string {
++  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
++}
++
++export function sumCents(values: readonly number[]): number {
++  return values.reduce((total, v) => total + v, 0);
++}
+diff --git a/src/utils/pagination.ts b/src/utils/pagination.ts
+new file mode 100644
+index 0000000..5050f94
+--- /dev/null
++++ b/src/utils/pagination.ts
+@@ -0,0 +1,10 @@
++export interface Page<T> {
++  items: T[];
++  next?: number;
++}
++
++export function paginate<T>(items: readonly T[], offset: number, limit: number): Page<T> {
++  const page = items.slice(offset, offset + limit);
++  const next = offset + limit < items.length ? offset + limit : undefined;
++  return next === undefined ? { items: page } : { items: page, next };
++}
+diff --git a/src/utils/query.ts b/src/utils/query.ts
+new file mode 100644
+index 0000000..473d1bf
+--- /dev/null
++++ b/src/utils/query.ts
+@@ -0,0 +1,5 @@
++export function intParam(query: URLSearchParams, name: string, fallback: number): number {
++  const raw = query.get(name);
++  const value = raw === null ? Number.NaN : Number(raw);
++  return Number.isInteger(value) ? value : fallback;
++}
+diff --git a/src/utils/retry.ts b/src/utils/retry.ts
+new file mode 100644
+index 0000000..68cdaa7
+--- /dev/null
++++ b/src/utils/retry.ts
+@@ -0,0 +1,11 @@
++export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
++  let last: unknown;
++  for (let i = 0; i < attempts; i += 1) {
++    try {
++      return await fn();
++    } catch (err) {
++      last = err;
++    }
++  }
++  throw last;
++}
+diff --git a/src/utils/strings.ts b/src/utils/strings.ts
+new file mode 100644
+index 0000000..7a2ac57
+--- /dev/null
++++ b/src/utils/strings.ts
+@@ -0,0 +1,11 @@
++export function slugify(text: string): string {
++  return text
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, "-")
++    .replace(/^-|-$/g, "");
++}
++
++export function truncate(text: string, max: number): string {
++  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
++}
+diff --git a/test/utils/arrays.test.ts b/test/utils/arrays.test.ts
+new file mode 100644
+index 0000000..d4fc243
+--- /dev/null
++++ b/test/utils/arrays.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { chunk } from "../../src/utils/arrays.ts";
++
++test("chunk", async () => {
++  assert.deepEqual(chunk([1, 2, 3], 2).length, 2);
++});
+diff --git a/test/utils/clock.test.ts b/test/utils/clock.test.ts
+new file mode 100644
+index 0000000..a70c0cd
+--- /dev/null
++++ b/test/utils/clock.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { fixedClock } from "../../src/utils/clock.ts";
++
++test("fixedClock", async () => {
++  assert.deepEqual(fixedClock("2026-01-01T00:00:00Z").now().getUTCFullYear(), 2026);
++});
+diff --git a/test/utils/dates.test.ts b/test/utils/dates.test.ts
+new file mode 100644
+index 0000000..244dbc1
+--- /dev/null
++++ b/test/utils/dates.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { isoDate } from "../../src/utils/dates.ts";
++
++test("isoDate", async () => {
++  assert.deepEqual(isoDate(new Date("2026-01-02T10:00:00Z")), "2026-01-02");
++});
+diff --git a/test/utils/email.test.ts b/test/utils/email.test.ts
+new file mode 100644
+index 0000000..99ee316
+--- /dev/null
++++ b/test/utils/email.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { normalizeEmail } from "../../src/utils/email.ts";
++
++test("normalizeEmail", async () => {
++  assert.deepEqual(normalizeEmail(" Ada@Example.com "), "ada@example.com");
++});
+diff --git a/test/utils/ids.test.ts b/test/utils/ids.test.ts
+new file mode 100644
+index 0000000..d46b9f2
+--- /dev/null
++++ b/test/utils/ids.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { isOrderId } from "../../src/utils/ids.ts";
++
++test("isOrderId", async () => {
++  assert.deepEqual(isOrderId("ord_12"), true);
++});
+diff --git a/test/utils/money.test.ts b/test/utils/money.test.ts
+new file mode 100644
+index 0000000..7bbc5b1
+--- /dev/null
++++ b/test/utils/money.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { formatCents } from "../../src/utils/money.ts";
++
++test("formatCents", async () => {
++  assert.deepEqual(formatCents(1299), "$12.99");
++});
+diff --git a/test/utils/pagination.test.ts b/test/utils/pagination.test.ts
+new file mode 100644
+index 0000000..2e57770
+--- /dev/null
++++ b/test/utils/pagination.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { paginate } from "../../src/utils/pagination.ts";
++
++test("paginate", async () => {
++  assert.deepEqual(paginate([1, 2, 3], 0, 2).next, 2);
++});
+diff --git a/test/utils/query.test.ts b/test/utils/query.test.ts
+new file mode 100644
+index 0000000..66bcb2e
+--- /dev/null
++++ b/test/utils/query.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { intParam } from "../../src/utils/query.ts";
++
++test("intParam", async () => {
++  assert.deepEqual(intParam(new URLSearchParams("limit=5"), "limit", 10), 5);
++});
+diff --git a/test/utils/retry.test.ts b/test/utils/retry.test.ts
+new file mode 100644
+index 0000000..48a8f23
+--- /dev/null
++++ b/test/utils/retry.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { retry } from "../../src/utils/retry.ts";
++
++test("retry", async () => {
++  assert.deepEqual(await retry(async () => 7), 7);
++});
+diff --git a/test/utils/strings.test.ts b/test/utils/strings.test.ts
+new file mode 100644
+index 0000000..be1bdb5
+--- /dev/null
++++ b/test/utils/strings.test.ts
+@@ -0,0 +1,7 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { slugify } from "../../src/utils/strings.ts";
++
++test("slugify", async () => {
++  assert.deepEqual(slugify(" Hello, World "), "hello-world");
++});

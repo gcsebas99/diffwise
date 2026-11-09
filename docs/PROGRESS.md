@@ -19,7 +19,7 @@
 | 2.6 Demo polish | ⚪ | 2026-11-08 | A portfolio README leads with the live demo, the safety model and a concept → file map; the demo repo explains what to look for on each seeded PR. |
 | 3.1 Deterministic checks | 🟡 | 2026-11-08 | Pattern rules run as code before the model, on every PR and for free; secrets are redacted where the message is created; the engine decides when the model is needed, and a checks-only summary says what was not checked. |
 | 3.2 Record / replay | 🟡 | 2026-11-09 | Cassettes keyed by a hash of the normalized request (tool ids renumbered, everything the model reads kept); replay serves exact matches only and a miss is a HarnessError the loop re-throws, never a quiet model_error. |
-| 3.3 Eval cases | 🟢→🟡 | | |
+| 3.3 Eval cases | 🟢→🟡 | 2026-11-09 | 18 cases as patches on one fixture, each with a one-line reason; expectations use line ranges and are checked against the rules at load time, and the dataset itself is tested (patches apply, ranges commentable, no-model cases already grade) so a broken case never looks like an agent failure. Writing them exposed an ambiguous rule. |
 | 3.4 Graders | 🟢→🟡 | | |
 | 3.5 Runner + report | 🟡 | | |
 | 3.6 CI gate | ⚪ | | |

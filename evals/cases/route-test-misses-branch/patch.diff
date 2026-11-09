@@ -1,0 +1,35 @@
+diff --git a/src/routes/users.ts b/src/routes/users.ts
+index bc4d18d..ce7e0d9 100644
+--- a/src/routes/users.ts
++++ b/src/routes/users.ts
+@@ -16,6 +16,10 @@ export function registerUserRoutes(router: Router, db: Db): void {
+     if (typeof input.name !== "string" || input.name.trim() === "") {
+       return { status: 400, body: { error: "name is required" } };
+     }
++    const email = input.email.toLowerCase();
++    if ([...db.users.values()].some((u) => u.email.toLowerCase() === email)) {
++      return { status: 409, body: { error: "email is already registered" } };
++    }
+     const user = { id: db.nextId("usr"), email: input.email, name: input.name.trim() };
+     db.users.set(user.id, user);
+     return { status: 201, body: user };
+diff --git a/test/routes/users.test.ts b/test/routes/users.test.ts
+index 6e54421..6af4b2b 100644
+--- a/test/routes/users.test.ts
++++ b/test/routes/users.test.ts
+@@ -12,6 +12,15 @@ test("POST /users creates a user", async () => {
+   assert.deepEqual(res.body, { id: "usr_1", email: "ada@example.com", name: "Ada" });
+ });
+ 
++test("POST /users rejects a blank name", async () => {
++  const { call } = setup();
++  const res = await call("POST", "/users", {
++    userId: "admin",
++    body: { email: "ada@example.com", name: "   " },
++  });
++  assert.equal(res.status, 400);
++});
++
+ test("POST /users rejects a missing email", async () => {
+   const { call } = setup();
+   const res = await call("POST", "/users", { userId: "admin", body: { name: "Ada" } });

@@ -1,0 +1,14 @@
+id: migration-noop-down
+description: >
+  Subtle: `down` exists but is a SQL comment with a plausible excuse, so a reviewer checking
+  only "is there a down?" passes it, though the rule counts an empty down as missing.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Add order notes
+  body: Rollback keeps the column; that's intentional.
+expect:
+  verdict: fail
+  findings:
+    - { rule: migration-reversible, path: migrations/003_add_order_notes.ts, lines: [1, 11] }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [migrations, positive, subtle]

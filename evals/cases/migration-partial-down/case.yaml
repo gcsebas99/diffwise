@@ -1,0 +1,13 @@
+id: migration-partial-down
+description: >
+  Subtle: `down` has real SQL but only drops the index, leaving the column `up` added, so a
+  reviewer checking "does down contain SQL?" passes it; the rule calls a partial down a violation.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Add order notes
+expect:
+  verdict: fail
+  findings:
+    - { rule: migration-reversible, path: migrations/003_add_order_notes.ts, lines: [1, 10] }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [migrations, positive, subtle]

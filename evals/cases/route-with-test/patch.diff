@@ -1,0 +1,55 @@
+diff --git a/src/routes/orders.ts b/src/routes/orders.ts
+index 8b99a51..385bd04 100644
+--- a/src/routes/orders.ts
++++ b/src/routes/orders.ts
+@@ -1,9 +1,17 @@
+-import type { Db } from "../db.ts";
++import type { Db, OrderStatus } from "../db.ts";
+ import type { Router } from "../router.ts";
+ 
++const STATUSES: readonly OrderStatus[] = ["pending", "paid", "shipped"];
++
+ export function registerOrderRoutes(router: Router, db: Db): void {
+   router.get("/orders", (req) => {
+-    const orders = [...db.orders.values()].filter((o) => o.userId === req.user?.id);
++    const status = req.query.get("status");
++    if (status !== null && !STATUSES.includes(status as OrderStatus)) {
++      return { status: 400, body: { error: `status must be one of ${STATUSES.join(", ")}` } };
++    }
++    const orders = [...db.orders.values()].filter(
++      (o) => o.userId === req.user?.id && (status === null || o.status === status),
++    );
+     return { status: 200, body: { orders } };
+   });
+ 
+diff --git a/test/routes/orders.test.ts b/test/routes/orders.test.ts
+index 56b5c92..57e9d8c 100644
+--- a/test/routes/orders.test.ts
++++ b/test/routes/orders.test.ts
+@@ -24,6 +24,26 @@ test("GET /orders only returns the caller's orders", async () => {
+   assert.equal((res.body as { orders: unknown[] }).orders.length, 1);
+ });
+ 
++test("GET /orders?status= filters by status", async () => {
++  const { call, db } = setup();
++  await call("POST", "/orders", { userId: "usr_1", body: { totalCents: 100 } });
++  await call("POST", "/orders", { userId: "usr_1", body: { totalCents: 200 } });
++  const paid = db.orders.get("ord_2");
++  if (paid) paid.status = "paid";
++  const res = await call("GET", "/orders?status=paid", { userId: "usr_1" });
++  assert.equal(res.status, 200);
++  assert.deepEqual(
++    (res.body as { orders: { id: string }[] }).orders.map((o) => o.id),
++    ["ord_2"],
++  );
++});
++
++test("GET /orders rejects an unknown status", async () => {
++  const { call } = setup();
++  const res = await call("GET", "/orders?status=lost", { userId: "usr_1" });
++  assert.equal(res.status, 400);
++});
++
+ test("GET /health is public", async () => {
+   const { call } = setup();
+   const res = await call("GET", "/health");

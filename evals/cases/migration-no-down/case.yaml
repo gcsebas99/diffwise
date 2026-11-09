@@ -1,0 +1,13 @@
+id: migration-no-down
+description: >
+  The migration positive: a new migration adds a column and an index with no `down`, so
+  migration-reversible must fire anywhere in the migration object.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Add order notes
+expect:
+  verdict: fail
+  findings:
+    - { rule: migration-reversible, path: migrations/003_add_order_notes.ts, lines: [1, 9] }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [migrations, positive, smoke]

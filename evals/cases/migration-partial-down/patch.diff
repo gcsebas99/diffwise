@@ -1,0 +1,16 @@
+diff --git a/migrations/003_add_order_notes.ts b/migrations/003_add_order_notes.ts
+new file mode 100644
+index 0000000..a70d437
+--- /dev/null
++++ b/migrations/003_add_order_notes.ts
+@@ -0,0 +1,10 @@
++import type { Migration } from "./types.ts";
++
++export const migration: Migration = {
++  id: "003_add_order_notes",
++  up: `
++    ALTER TABLE orders ADD COLUMN notes TEXT;
++    CREATE INDEX orders_status_idx ON orders(status);
++  `,
++  down: "DROP INDEX orders_status_idx;",
++};

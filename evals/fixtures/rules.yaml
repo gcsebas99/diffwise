@@ -1,0 +1,31 @@
+version: 1
+rules:
+  - id: route-needs-test
+    title: API route changes need a test change
+    severity: blocking            # blocking | advisory
+    applies_to: ["src/routes/**"]
+    check: llm                    # llm | deterministic:<name>
+    instructions: >
+      If a route handler's behavior changes, the PR must add or change a test under test/routes/
+      that exercises the changed behavior. Editing an unrelated test doesn't count.
+
+  - id: no-secrets-in-diff
+    title: No secrets or tokens in code or logs
+    severity: blocking
+    applies_to: ["**/*"]
+    check: deterministic:secrets
+
+  - id: migration-reversible
+    title: Migrations must be reversible
+    severity: blocking
+    applies_to: ["migrations/**"]
+    check: llm
+    instructions: >
+      Every new migration must define a `down` that undoes its `up` (drop what it creates,
+      restore what it alters). A missing, empty or partial `down` is a violation.
+
+  - id: env-documented
+    title: New environment variables are documented
+    severity: advisory
+    applies_to: ["src/**"]
+    check: deterministic:env-documented

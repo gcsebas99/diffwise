@@ -1,0 +1,14 @@
+id: route-with-test
+description: >
+  The negative of route-no-test: the same filter ships with tests for the new filter and the
+  new 400, so flagging it would be a false positive.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Filter orders by status
+  body: Adds an optional `?status=` query parameter to `GET /orders`, with tests.
+expect:
+  verdict: pass
+  forbidden:
+    - { rule: route-needs-test }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [routes, negative, smoke]

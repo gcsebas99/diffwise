@@ -1,0 +1,14 @@
+id: route-refactor-same-behavior
+description: >
+  False-positive trap: POST /users validation moves into a helper with the same status codes
+  and messages, so behavior doesn't change and no test is required.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Extract user input parsing
+  body: Pure refactor of `POST /users`; responses are unchanged.
+expect:
+  verdict: pass
+  forbidden:
+    - { rule: route-needs-test }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [routes, negative, false-positive-trap]

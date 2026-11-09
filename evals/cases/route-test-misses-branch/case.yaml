@@ -1,0 +1,14 @@
+id: route-test-misses-branch
+description: >
+  Subtle: POST /users gains a 409 for duplicate emails and a test file changes, but the new
+  test only covers blank names, so "a test changed" isn't enough and the rule must still fire.
+rules: ../../fixtures/rules.yaml
+pr:
+  title: Reject duplicate emails on signup
+  body: Returns 409 when the email is already registered. Also adds a missing validation test.
+expect:
+  verdict: fail
+  findings:
+    - { rule: route-needs-test, path: src/routes/users.ts, lines: [16, 25] }
+budgets: { max_steps: 8, max_tokens: 40000, max_cost_usd: 0.01 }
+tags: [routes, positive, subtle]

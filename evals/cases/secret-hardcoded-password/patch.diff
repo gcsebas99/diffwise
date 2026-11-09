@@ -1,0 +1,19 @@
+diff --git a/src/mailer.ts b/src/mailer.ts
+new file mode 100644
+index 0000000..0286dec
+--- /dev/null
++++ b/src/mailer.ts
+@@ -0,0 +1,13 @@
++import { logger } from "./logger.ts";
++
++// Outgoing mail for order receipts. Swap for a real transport later.
++const smtp = {
++  host: "smtp.mailhost.io",
++  port: 587,
++  user: "receipts@shop.io",
++  password: "Wq7v-Lm2r-Tz9k-2026",
++};
++
++export function sendReceipt(to: string, orderId: string): void {
++  logger.info("receipt queued", { to, orderId, host: smtp.host });
++}
