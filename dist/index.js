@@ -80704,6 +80704,9 @@ function addUsage(a, b) {
     cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens
   };
 }
+var HarnessError = class extends Error {
+  name = "HarnessError";
+};
 
 // src/cli-format.ts
 var paint = (style, text, color) => color ? styleText(style, text, { validateStream: false }) : text;
@@ -81678,6 +81681,7 @@ async function runReview(options) {
     try {
       response = await model.create({ system, messages, tools });
     } catch (err) {
+      if (err instanceof HarnessError) throw err;
       return finish("model_error", err instanceof Error ? err.message : String(err));
     }
     usage = addUsage(usage, response.usage);

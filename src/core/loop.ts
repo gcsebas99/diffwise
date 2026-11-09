@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import {
   addUsage,
+  HarnessError,
   type ModelClient,
   type ModelResponse,
   totalInputTokens,
@@ -151,6 +152,10 @@ export async function runReview(options: RunReviewOptions): Promise<ReviewRun> {
     try {
       response = await model.create({ system, messages, tools });
     } catch (err) {
+      // [HARNESS:EVAL] A broken harness (e.g. a cassette miss) is re-thrown, never an outcome.
+      // WHY: as model_error it would become a neutral verdict, and an eval would count a stale
+      //      fixture as "the model had a bad day" instead of failing the run.
+      if (err instanceof HarnessError) throw err;
       // Exit: model error. The SDK already retried what it could; the model can't fix the rest.
       return finish("model_error", err instanceof Error ? err.message : String(err));
     }

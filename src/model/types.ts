@@ -46,3 +46,10 @@ export function addUsage(a: Usage, b: Usage): Usage {
     cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
   };
 }
+
+// A failure of the test harness itself (e.g. a replay cassette that doesn't match), not of the
+// model call. The loop re-throws these: a broken eval setup must fail loudly, never end as a
+// quiet model_error that reads like "the API had a bad day".
+export class HarnessError extends Error {
+  override readonly name: string = "HarnessError";
+}

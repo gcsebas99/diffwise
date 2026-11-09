@@ -10,6 +10,7 @@ import {
   text,
   toolUse,
 } from "../../src/model/scripted.js";
+import { HarnessError } from "../../src/model/types.js";
 import { makeContext } from "../fakes/tool-context.js";
 
 const LIMITS: LoopLimits = { maxSteps: 20, tokenBudget: 100_000, deadlineMs: 600_000 };
@@ -179,6 +180,11 @@ describe("runReview: early exits keep findings and are never complete", () => {
       error: "529 overloaded",
     });
     expect(result.findings).toHaveLength(1);
+  });
+
+  it("re-throws a harness error instead of ending as model_error", async () => {
+    const stale = new HarnessError("Cassette miss at call 2");
+    await expect(run([response([finding(4)]), stale])).rejects.toBe(stale);
   });
 
   it("adds a note after the results when the output was cut off", async () => {
