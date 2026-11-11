@@ -7,3 +7,6 @@ coverage/
 .DS_Store
 *.zip
 *.log
+
+# Eval reports are per run; keep one on purpose by copying it into docs/.
+evals/reports/

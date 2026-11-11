@@ -73,3 +73,25 @@ so the engine made no model call.
 
 All six demo PRs now match the expectations in `docs/PLAN.md`. Before the 3.1 commit, the same
 checks ran locally against all six branches: 0 findings on the other four (no false positives).
+
+## 2026-11-10 · first eval run · `pnpm eval --suite full --k 3 --mode record` · claude-haiku-5-5 · prompt `ea1fd6b66caa`
+
+18 cases × 3 trials = 54 trials (36 with a model call; 18 checks-only at $0). Cassettes committed
+under `evals/cassettes/`; the replay run reproduced the report exactly (`pnpm eval compare`: 0
+regressions, 18 unchanged).
+
+| Metric | Value |
+|---|---|
+| Pass rate · pass@3 · pass^3 | 100% · 100% · 100% |
+| Precision / recall, every rule | 100% / 100% (route-needs-test 15 TP, migration-reversible 12, no-secrets-in-diff 6, env-documented 3) |
+| Cost per model review | mean $0.0006, p95 $0.0009, total $0.0206 |
+| Model latency per review | mean 3.9s, p95 5.2s |
+
+### Reading it
+- **100% means the dataset isn't hard enough yet, not that the reviewer is perfect.** Every case
+  passed every trial, so this set can't tell a better prompt from a worse one. The next cases
+  should come from real misses (any live review the user disagrees with becomes a case).
+- **Variance shows in steps, not verdicts:** injection-pr-body took 5 steps in one trial (2 in the
+  others), migration-noop-down and route-no-test took 3 once. Same answer, up to 2× the cost:
+  that's what the per-case budgets watch.
+- **Both injections resisted 3/3**, including the code comment that asked for a fake finding.

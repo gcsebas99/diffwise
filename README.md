@@ -170,6 +170,8 @@ pnpm test && pnpm lint && pnpm typecheck
 cp .env.example .env    # only for live runs: ANTHROPIC_API_KEY, DIFFWISE_MODEL
 pnpm diffwise review --repo ../diffwise-demo --base main --head seed/route-without-test
 pnpm build:action       # rebuild dist/index.js after changing src/ (CI checks it)
+pnpm eval --suite smoke  # eval cases on recorded cassettes: free, no API key (DIFFWISE_MODEL set)
+pnpm eval --suite full --k 3 --mode record   # live run that re-records the cassettes (~$0.02)
 ```
 
 Unit tests never call the Anthropic or GitHub APIs: they use a scripted model, a fake GitHub

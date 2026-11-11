@@ -10,6 +10,7 @@
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "diffwise": "tsx --env-file-if-exists=.env src/cli.ts",
+    "eval": "tsx --env-file-if-exists=.env evals/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
