@@ -8,6 +8,7 @@ import { RecordingModel } from "../src/model/recording.js";
 import { ReplayModel } from "../src/model/replay.js";
 import { EVALS_DIR, FULL_SUITE, loadCases } from "./case.js";
 import { compareReports, comparisonToMarkdown } from "./compare.js";
+import { gate } from "./gate.js";
 import { type Report, summarize, toMarkdown } from "./report.js";
 import {
   cassettePath,
@@ -17,8 +18,9 @@ import {
   type TrialRecord,
 } from "./runner.js";
 
-// Same convention as the CLI: 0 = ran, 2 = could not run (setup or harness error).
-// Pass/fail thresholds are the CI gate's job (3.6), not this command's.
+// Same convention as the CLI: 0 = ran (and passed the gate, if one was set), 1 = gate failed,
+// 2 = could not run (setup or harness error). 2 wins: a broken harness says nothing about quality.
+const EXIT_GATE_FAILED = 1;
 const EXIT_HARNESS_ERROR = 2;
 const REPORTS_DIR = join(EVALS_DIR, "reports");
 
@@ -27,6 +29,8 @@ interface RunOpts {
   k: number;
   mode: EvalMode;
   concurrency: number;
+  minPassRate?: number;
+  mustPass: string[];
 }
 
 function models(mode: EvalMode, config: Config): { modelName: string; factory: ModelFactory } {
@@ -78,9 +82,14 @@ program
       .default("replay"),
   )
   .option("--concurrency <n>", "trials in parallel", (v) => Number.parseInt(v, 10), 3)
+  .option("--min-pass-rate <0-1>", "gate: fail if the trial pass rate is below this", Number)
+  .option("--must-pass <tags...>", "gate: fail if any case with these tags fails a trial", [])
   .action(async (opts: RunOpts) => {
     if (!(opts.k >= 1) || !(opts.concurrency >= 1))
       throw new Error("--k and --concurrency must be >= 1");
+    const minPassRate = opts.minPassRate ?? 0;
+    if (!(minPassRate >= 0 && minPassRate <= 1))
+      throw new Error("--min-pass-rate must be between 0 and 1");
     const config = loadConfig();
     const { modelName, factory } = models(opts.mode, config);
     const cases = await loadCases(opts.suite);
@@ -126,6 +135,14 @@ program
         "harness errors (not agent failures): see the report; re-record stale cassettes",
       );
       process.exitCode = EXIT_HARNESS_ERROR;
+      return;
+    }
+    const failures = gate(report, { minPassRate, mustPass: opts.mustPass });
+    if (failures.length > 0) {
+      console.error(`gate failed:\n${failures.map((f) => `  - ${f}`).join("\n")}`);
+      process.exitCode = EXIT_GATE_FAILED;
+    } else if (opts.minPassRate !== undefined || opts.mustPass.length > 0) {
+      console.log("gate passed");
     }
   });
 

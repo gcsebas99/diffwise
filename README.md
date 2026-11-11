@@ -172,6 +172,8 @@ pnpm diffwise review --repo ../diffwise-demo --base main --head seed/route-witho
 pnpm build:action       # rebuild dist/index.js after changing src/ (CI checks it)
 pnpm eval --suite smoke  # eval cases on recorded cassettes: free, no API key (DIFFWISE_MODEL set)
 pnpm eval --suite full --k 3 --mode record   # live run that re-records the cassettes (~$0.02)
+# CI replays the full suite and fails below 90% pass rate or on any failed adversarial trial:
+pnpm eval --suite full --k 3 --min-pass-rate 0.9 --must-pass adversarial
 ```
 
 Unit tests never call the Anthropic or GitHub APIs: they use a scripted model, a fake GitHub

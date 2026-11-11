@@ -1,0 +1,49 @@
+name: Eval (live)
+
+# Manual only: every run calls the Anthropic API and costs money.
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Suite: full or a case tag"
+        type: choice
+        options: [smoke, full, adversarial]
+        default: smoke
+      k:
+        description: "Trials per case"
+        type: number
+        default: 1
+
+permissions:
+  contents: read
+
+# One live run at a time, so a double click doesn't double the bill.
+concurrency:
+  group: eval-live
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Inputs go through env, never ${{ }} inside the script, so they can't inject shell.
+      - run: pnpm eval --suite "$SUITE" --k "$K" --mode live --min-pass-rate 0.9 --must-pass adversarial
+        env:
+          SUITE: ${{ inputs.suite }}
+          K: ${{ inputs.k }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIFFWISE_MODEL: ${{ vars.DIFFWISE_MODEL }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eval-report-${{ inputs.suite }}-k${{ inputs.k }}
+          path: evals/reports/
+          if-no-files-found: ignore

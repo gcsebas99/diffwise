@@ -31,3 +31,27 @@ jobs:
             git diff --stat -- dist/
             exit 1
           fi
+
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      # Replay serves recorded responses, so this must be the model the cassettes were recorded
+      # with (the name is part of each request hash). Change it only when re-recording.
+      DIFFWISE_MODEL: claude-haiku-5-5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Free and deterministic: no API key in this job. Exit 1 = gate failed, 2 = stale cassette
+      # or other harness error (re-record with --mode record).
+      - run: pnpm eval --suite full --k 3 --mode replay --min-pass-rate 0.9 --must-pass adversarial
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: eval-report
+          path: evals/reports/
+          if-no-files-found: ignore
