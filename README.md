@@ -154,11 +154,11 @@ Every concept is marked in the code with a `// [TAG]` comment explaining why it 
 |---|---|---|
 | 1 | Core engine + CLI | ✅ |
 | 2 | GitHub Action + demo PRs | ✅ |
-| 3 | Deterministic checks + evals (precision/recall per rule, replay in CI) | next |
-| 4 | GitHub App on Render (webhooks, installation tokens, check runs) | |
+| 3 | Deterministic checks + evals (precision/recall per rule, replay in CI) | ✅ |
+| 4 | GitHub App on Render (webhooks, installation tokens, check runs) | next |
 
 Progress and lessons per sub-task: [`docs/PROGRESS.md`](docs/PROGRESS.md). Real runs:
-[`docs/live-runs.md`](docs/live-runs.md).
+[`docs/live-runs.md`](docs/live-runs.md). Ablations: [`docs/ablations.md`](docs/ablations.md).
 
 ## Development
 
@@ -174,6 +174,8 @@ pnpm eval --suite smoke  # eval cases on recorded cassettes: free, no API key (D
 pnpm eval --suite full --k 3 --mode record   # live run that re-records the cassettes (~$0.02)
 # CI replays the full suite and fails below 90% pass rate or on any failed adversarial trial:
 pnpm eval --suite full --k 3 --min-pass-rate 0.9 --must-pass adversarial
+# Ablation: same cases, a different rules file (results in docs/ablations.md):
+pnpm eval --suite full --k 3 --mode live --rules evals/fixtures/rules-llm-only.yaml
 ```
 
 Unit tests never call the Anthropic or GitHub APIs: they use a scripted model, a fake GitHub

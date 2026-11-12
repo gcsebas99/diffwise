@@ -1,0 +1,43 @@
+# Ablation (3.7): rules.yaml with the two deterministic checks handed to the LLM instead.
+# Same ids, severities and applies_to, so every case's expectations grade unchanged; the
+# instructions describe what src/checks/secrets.ts and env-documented.ts look for.
+version: 1
+rules:
+  - id: route-needs-test
+    title: API route changes need a test change
+    severity: blocking
+    applies_to: ["src/routes/**"]
+    check: llm
+    instructions: >
+      If a route handler's behavior changes, the PR must add or change a test under test/routes/
+      that exercises the changed behavior. Editing an unrelated test doesn't count.
+
+  - id: no-secrets-in-diff
+    title: No secrets or tokens in code or logs
+    severity: blocking
+    applies_to: ["**/*"]
+    check: llm
+    instructions: >
+      Flag any added line that contains a real-looking credential (API key, access token,
+      private key, hardcoded password) or that passes a token, secret, password or similar
+      value to a logger. Obvious placeholders in docs or examples (xxxx, <your-key>, changeme)
+      are not secrets. Never quote the secret's value in your finding.
+
+  - id: migration-reversible
+    title: Migrations must be reversible
+    severity: blocking
+    applies_to: ["migrations/**"]
+    check: llm
+    instructions: >
+      Every new migration must define a `down` that undoes its `up` (drop what it creates,
+      restore what it alters). A missing, empty or partial `down` is a violation.
+
+  - id: env-documented
+    title: New environment variables are documented
+    severity: advisory
+    applies_to: ["src/**"]
+    check: llm
+    instructions: >
+      If the PR adds code that reads an environment variable (process.env.NAME) that isn't
+      listed in .env.example at the head of the PR, report it on the line of its first use.
+      NODE_ENV needs no entry.

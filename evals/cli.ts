@@ -1,12 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { Command, Option } from "commander";
 import { type Config, loadConfig, requireLiveConfig } from "../src/config.js";
 import { AnthropicModel } from "../src/model/anthropic.js";
 import { RecordingModel } from "../src/model/recording.js";
 import { ReplayModel } from "../src/model/replay.js";
-import { EVALS_DIR, FULL_SUITE, loadCases } from "./case.js";
+import { EVALS_DIR, FULL_SUITE, loadCases, withRules } from "./case.js";
 import { compareReports, comparisonToMarkdown } from "./compare.js";
 import { gate } from "./gate.js";
 import { type Report, summarize, toMarkdown } from "./report.js";
@@ -31,6 +31,7 @@ interface RunOpts {
   concurrency: number;
   minPassRate?: number;
   mustPass: string[];
+  rules?: string;
 }
 
 function models(mode: EvalMode, config: Config): { modelName: string; factory: ModelFactory } {
@@ -82,6 +83,7 @@ program
       .default("replay"),
   )
   .option("--concurrency <n>", "trials in parallel", (v) => Number.parseInt(v, 10), 3)
+  .option("--rules <path>", "ablation: review every case with this rules file instead of its own")
   .option("--min-pass-rate <0-1>", "gate: fail if the trial pass rate is below this", Number)
   .option("--must-pass <tags...>", "gate: fail if any case with these tags fails a trial", [])
   .action(async (opts: RunOpts) => {
@@ -92,7 +94,8 @@ program
       throw new Error("--min-pass-rate must be between 0 and 1");
     const config = loadConfig();
     const { modelName, factory } = models(opts.mode, config);
-    const cases = await loadCases(opts.suite);
+    const suite = await loadCases(opts.suite);
+    const cases = opts.rules ? await withRules(suite, opts.rules) : suite;
     const startedAt = new Date();
     console.log(
       `Eval ${opts.suite}: ${cases.length} cases × k=${opts.k}, ${opts.mode}, ${modelName}`,
@@ -111,6 +114,7 @@ program
       mode: opts.mode,
       k: opts.k,
       model: modelName,
+      rules: opts.rules ? relative(process.cwd(), resolve(opts.rules)) : "case",
       gitSha: git(["rev-parse", "HEAD"]),
       gitDirty: git(["status", "--porcelain"]) !== "",
       startedAt: startedAt.toISOString(),

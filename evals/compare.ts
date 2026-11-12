@@ -12,6 +12,8 @@ export interface Comparison {
   unchanged: number;
   warnings: string[]; // differences that make the comparison unfair
   cost: { before: number; after: number; delta: number }; // mean per model trial
+  // A run that sends more cases to the model can keep the same mean and still cost more.
+  totalCost: { before: number; after: number; modelTrials: [number, number] };
   rules: {
     rule: string;
     precision: [number | null, number | null];
@@ -35,6 +37,7 @@ export function compareReports(a: Report, b: Report): Comparison {
   differs("model", a.meta.model, b.meta.model);
   differs("suite", a.meta.suite, b.meta.suite);
   differs("k", a.meta.k, b.meta.k);
+  differs("rules", a.meta.rules, b.meta.rules);
   differs("prompt version", a.meta.promptVersions, b.meta.promptVersions);
 
   const before = new Map(a.cases.map((c) => [c.id, c]));
@@ -77,6 +80,7 @@ export function compareReports(a: Report, b: Report): Comparison {
     unchanged,
     warnings,
     cost: { before: a.cost.mean, after: b.cost.mean, delta: b.cost.mean - a.cost.mean },
+    totalCost: { before: a.cost.total, after: b.cost.total, modelTrials: [a.cost.n, b.cost.n] },
     rules,
   };
 }
@@ -92,6 +96,7 @@ export function comparisonToMarkdown(c: Comparison): string {
     ...(c.warnings.length ? [""] : []),
     `**${c.regressions.length} regressions**, ${c.fixes.length} fixes, ${c.unchanged} unchanged.`,
     `Mean cost per review: $${c.cost.before.toFixed(4)} → $${c.cost.after.toFixed(4)} (${sign}$${Math.abs(c.cost.delta).toFixed(4)}).`,
+    `Total cost: $${c.totalCost.before.toFixed(4)} → $${c.totalCost.after.toFixed(4)}, model ran in ${c.totalCost.modelTrials[0]} → ${c.totalCost.modelTrials[1]} trials.`,
     "",
   ];
   const table = (title: string, rows: CaseChange[]) => {

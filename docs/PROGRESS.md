@@ -23,7 +23,7 @@
 | 3.4 Graders | 🟢→🟡 | 2026-11-09 | Four pure graders (verdict, findings, forbidden, budget); findings match one-to-one by rule + path + range with optimal greedy order, gate on blocking recall and report precision per rule; a no-model run is the baseline (8/18), so negatives only mean something next to their positive twins. |
 | 3.5 Runner + report | 🟡 | 2026-11-10 | k trials per case through a pool, one cassette per trial so replay keeps the variance; harness errors are reported apart from agent failures; pass@k vs pass^k and precision/recall per rule; first full run: 54/54 trials, $0.02, and replay identical. |
 | 3.6 CI gate | ⚪ | 2026-11-11 | CI replays the full suite for free (exit 1 = gate failed, 2 = stale cassette); a pass-rate floor for the suite but zero tolerance for adversarial cases, and a must-pass tag that matches nothing fails instead of passing vacuously; live evals are manual only. |
-| 3.7 Ablation | 🟢→🟡 | | |
+| 3.7 Ablation | 🟡 | 2026-11-11 | Checks off (LLM handles secrets and env vars): same recall, 3 false positives, +52% cost and 18 more model calls; a rule a pattern can express belongs in code. A flat mean cost hid that total cost went up, so `compare` now shows the total. |
 | 4.1 Register App | 🔧 | | |
 | 4.2 App auth | 🟢→🟡 | | |
 | 4.3 Webhook endpoint | 🟢→🟡 | | |

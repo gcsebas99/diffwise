@@ -9,6 +9,7 @@ const META: ReportMeta = {
   mode: "replay",
   k: 3,
   model: "claude-haiku-5-5",
+  rules: "case",
   gitSha: "0123456789abcdef",
   gitDirty: false,
   startedAt: "2026-11-10T00:00:00.000Z",
@@ -135,7 +136,7 @@ describe("summarize", () => {
   it("renders the headline numbers, rule table and failures as markdown", () => {
     const md = toMarkdown(report);
     expect(md).toContain(
-      "Mode **replay**, k = 3, model `claude-haiku-5-5`, prompt `abc123`, diffwise `0123456`.",
+      "Mode **replay**, k = 3, rules `case`, model `claude-haiku-5-5`, prompt `abc123`, diffwise `0123456`.",
     );
     expect(md).toContain("| 3 | 9 | 56% | 67% | 33% | 0 |");
     expect(md).toContain("| flaky | 2/3 | ✓ | ✗ | routes |");
@@ -173,6 +174,10 @@ describe("compareReports", () => {
   it("reports the change in mean cost", () => {
     expect(cmp.cost.before).toBeCloseTo((0.001 + 0.001 + 0.002) / 3);
     expect(cmp.cost.after).toBeCloseTo((0.001 + 0.001 + 0.004) / 3);
-    expect(comparisonToMarkdown(cmp)).toContain("**1 regressions**, 1 fixes, 0 unchanged.");
+    expect(cmp.totalCost).toMatchObject({ modelTrials: [3, 3] });
+    expect(cmp.totalCost.after).toBeCloseTo(0.006);
+    const md = comparisonToMarkdown(cmp);
+    expect(md).toContain("**1 regressions**, 1 fixes, 0 unchanged.");
+    expect(md).toContain("Total cost: $0.0040 → $0.0060, model ran in 3 → 3 trials.");
   });
 });

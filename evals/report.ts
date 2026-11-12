@@ -6,6 +6,7 @@ export interface ReportMeta {
   mode: EvalMode;
   k: number;
   model: string | undefined;
+  rules: string; // the rules override, or "case" when each case used its own rules file
   gitSha: string;
   gitDirty: boolean; // a report from uncommitted code can't be reproduced from the sha alone
   startedAt: string; // ISO
@@ -156,7 +157,7 @@ export function toMarkdown(report: Report): string {
   const lines = [
     `# Eval report · ${meta.suite} · ${meta.startedAt}`,
     "",
-    `Mode **${meta.mode}**, k = ${meta.k}, model \`${meta.model ?? "none"}\`, prompt ${
+    `Mode **${meta.mode}**, k = ${meta.k}, rules \`${meta.rules}\`, model \`${meta.model ?? "none"}\`, prompt ${
       meta.promptVersions.map((v) => `\`${v}\``).join(", ") || "none"
     }, diffwise \`${sha}\`.`,
     "",

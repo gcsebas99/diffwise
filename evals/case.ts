@@ -124,3 +124,20 @@ export async function loadCases(suite = FULL_SUITE, casesDir = CASES_DIR): Promi
   if (selected.length === 0) throw new Error(`no eval case is tagged '${suite}'`);
   return selected;
 }
+
+// [HARNESS:EVAL] Ablation: rerun every case with one variable changed, here the rules file.
+// WHY: comparing two runs only says something when exactly one thing differs; same cases,
+//      same expectations, same model, so any change in precision or cost is the rules' doing.
+//      The expectations are re-checked, so an override that drops a rule fails here, not later.
+export async function withRules(
+  cases: readonly EvalCase[],
+  rulesPath: string,
+): Promise<EvalCase[]> {
+  const path = resolve(rulesPath);
+  const ruleSet = await loadRules(path);
+  return cases.map((c) => {
+    const problems = consistencyProblems(c, ruleSet);
+    if (problems.length > 0) throw new CaseError(c.dir, problems);
+    return { ...c, rulesPath: path, ruleSet };
+  });
+}

@@ -1,5 +1,8 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type EvalCase, loadCases } from "../../evals/case.js";
+import { CaseError, type EvalCase, FIXTURES_DIR, loadCases, withRules } from "../../evals/case.js";
 import { type RunOptions, runSuite, runTrial } from "../../evals/runner.js";
 import { loadConfig } from "../../src/config.js";
 import { response, ScriptedModel, toolUse } from "../../src/model/scripted.js";
@@ -112,5 +115,31 @@ describe("runSuite", () => {
     ]);
     expect(calls.sort()).toEqual(["route-no-test#1", "route-no-test#2", "route-no-test#3"]);
     expect(records.every((r) => r.status === "graded" && r.grade.passed)).toBe(true);
+  });
+});
+
+describe("withRules", () => {
+  it("swaps the rules for every case and re-checks the expectations against them", async () => {
+    const llmOnly = await withRules(all, join(FIXTURES_DIR, "rules-llm-only.yaml"));
+    expect(llmOnly).toHaveLength(all.length);
+    expect(llmOnly.every((c) => c.ruleSet.rules.every((r) => r.check.kind === "llm"))).toBe(true);
+    expect(llmOnly.every((c) => c.rulesPath.endsWith("rules-llm-only.yaml"))).toBe(true);
+  });
+
+  it("rejects an override that drops a rule a case expects", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "diffwise-rules-"));
+    const routesOnly = join(dir, "rules.yaml");
+    const yaml = await readFile(join(FIXTURES_DIR, "rules.yaml"), "utf8");
+    await writeFile(
+      routesOnly,
+      yaml.replace(/- id: migration-reversible[\s\S]*?(?=\n {2}- id:)/, ""),
+    );
+    try {
+      await expect(withRules([byId("migration-no-down")], routesOnly)).rejects.toBeInstanceOf(
+        CaseError,
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
