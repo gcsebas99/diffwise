@@ -4,6 +4,8 @@ coverage/
 .env
 .env.*
 !.env.example
+# GitHub App private keys live outside the repo; this catches one dropped in by accident.
+*.pem
 .DS_Store
 *.zip
 *.log

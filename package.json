@@ -17,7 +17,8 @@
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit",
     "build:action": "tsx scripts/build-action.ts",
-    "concepts": "tsx scripts/concepts.ts"
+    "concepts": "tsx scripts/concepts.ts",
+    "app:token": "tsx --env-file-if-exists=.env scripts/app-token.ts"
   },
   "dependencies": {
     "@actions/core": "^3.0.1",

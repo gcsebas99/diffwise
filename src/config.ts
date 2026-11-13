@@ -12,6 +12,11 @@ export const ConfigSchema = z.object({
   DIFFWISE_TOKEN_BUDGET: positiveInt(80_000),
   DIFFWISE_DEADLINE_SECONDS: positiveInt(600),
   DIFFWISE_TOOL_OUTPUT_MAX_CHARS: positiveInt(6_000),
+  // GitHub App (Phase 4). Optional here; the App adapter checks for them when it starts.
+  GITHUB_APP_CLIENT_ID: z.string().min(1).optional(),
+  GITHUB_PRIVATE_KEY: z.string().min(1).optional(), // the PEM itself (Render secret)
+  GITHUB_PRIVATE_KEY_PATH: z.string().min(1).optional(), // or a path to it (local dev)
+  GITHUB_INSTALLATION_ID: z.coerce.number().int().positive().optional(), // for scripts/app-token.ts
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
