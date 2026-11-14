@@ -17,6 +17,8 @@ export const ConfigSchema = z.object({
   GITHUB_PRIVATE_KEY: z.string().min(1).optional(), // the PEM itself (Render secret)
   GITHUB_PRIVATE_KEY_PATH: z.string().min(1).optional(), // or a path to it (local dev)
   GITHUB_INSTALLATION_ID: z.coerce.number().int().positive().optional(), // for scripts/app-token.ts
+  GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
+  PORT: positiveInt(3000), // Render sets it; 3000 locally
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

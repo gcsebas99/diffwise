@@ -26,7 +26,7 @@
 | 3.7 Ablation | 🟡 | 2026-11-11 | Checks off (LLM handles secrets and env vars): same recall, 3 false positives, +52% cost and 18 more model calls; a rule a pattern can express belongs in code. A flat mean cost hid that total cost went up, so `compare` now shows the total. |
 | 4.1 Register App | 🔧 | 2026-11-12 | The App is its own identity with least-privilege permissions (PRs rw, contents r, checks rw, metadata r), installed on diffwise-demo only; App ID 5736940, client ID Iv23liXUwt5G5RxAN0PZ, installation 181424445 (IDs, not secrets; the key and webhook secret never leave his machine). The Action workflow is disabled to avoid double reviews. |
 | 4.2 App auth | 🟢→🟡 | 2026-11-12 | Two identities: the App signs a 9-minute RS256 JWT (iat backdated 60s, iss = client ID) whose only job is minting installation tokens; those last an hour, are cached per installation and scope with a 5-minute refresh margin and shared by concurrent callers, and each review gets one down-scoped to its repo and permissions. |
-| 4.3 Webhook endpoint | 🟢→🟡 | | |
+| 4.3 Webhook endpoint | 🟢→🟡 | 2026-11-14 | Verify the HMAC over the raw bytes with a constant-time compare before parsing anything; filter to PR opened/synchronize/reopened; dedupe on X-GitHub-Delivery (redeliveries reuse it); reply 202 within GitHub's 10s and review afterwards, accepting that a crash after the 202 loses the job. |
 | 4.4 API source + job runner | 🟡 | | |
 | 4.5 Check runs | 🟡 | | |
 | 4.6 Deploy to Render | 🔧⚪ | | |
