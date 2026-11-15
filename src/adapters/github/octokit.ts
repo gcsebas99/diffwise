@@ -1,5 +1,14 @@
 import { Octokit } from "@octokit/rest";
-import type { ExistingReview, GitHubClient, NewReview, PrRef, PullRequest } from "./client.js";
+import type {
+  ExistingReview,
+  GitHubClient,
+  NewReview,
+  PrRef,
+  PullRequest,
+  PullRequestFile,
+  RepoRef,
+  TreeEntry,
+} from "./client.js";
 
 export interface OctokitClientOptions {
   token: string; // GITHUB_TOKEN in the Action; an installation token in the App (Phase 4)
@@ -15,6 +24,9 @@ export class OctokitGitHubClient implements GitHubClient {
     this.octokit = new Octokit({
       auth: options.token,
       userAgent: "diffwise",
+      // Octokit logs every failed request itself, including 404s we expect (a file that
+      // doesn't exist). Errors are thrown to us and reported there, so its own copy is noise.
+      log: { debug: () => {}, info: () => {}, warn: console.warn, error: () => {} },
       ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
       ...(options.fetch ? { request: { fetch: options.fetch } } : {}),
     });
@@ -61,6 +73,57 @@ export class OctokitGitHubClient implements GitHubClient {
   async updateReview(pr: PrRef, reviewId: number, body: string): Promise<void> {
     await this.octokit.rest.pulls.updateReview({ ...params(pr), review_id: reviewId, body });
   }
+
+  async listPullRequestFiles(pr: PrRef): Promise<PullRequestFile[]> {
+    const files = await this.octokit.paginate(this.octokit.rest.pulls.listFiles, {
+      ...params(pr),
+      per_page: 100,
+    });
+    return files.map((f) => ({
+      filename: f.filename,
+      ...(f.previous_filename ? { previousFilename: f.previous_filename } : {}),
+      status: f.status,
+      additions: f.additions,
+      deletions: f.deletions,
+      ...(f.patch !== undefined ? { patch: f.patch } : {}),
+    }));
+  }
+
+  async getFileContent(repo: RepoRef, ref: string, path: string): Promise<string | undefined> {
+    try {
+      // The raw media type returns the file's bytes (up to 100 MB); a directory still comes
+      // back as a JSON listing, which isn't a string.
+      const { data } = await this.octokit.rest.repos.getContent({
+        owner: repo.owner,
+        repo: repo.repo,
+        path,
+        ref,
+        mediaType: { format: "raw" },
+      });
+      return typeof data === "string" ? data : undefined;
+    } catch (err) {
+      if ((err as { status?: number }).status === 404) return undefined;
+      throw err;
+    }
+  }
+
+  async getTree(repo: RepoRef, sha: string): Promise<{ entries: TreeEntry[]; truncated: boolean }> {
+    const { data } = await this.octokit.rest.git.getTree({
+      owner: repo.owner,
+      repo: repo.repo,
+      tree_sha: sha,
+      recursive: "1",
+    });
+    const entries = data.tree.flatMap((e): TreeEntry[] =>
+      e.path && isEntryType(e.type)
+        ? [{ path: e.path, type: e.type, ...(e.size !== undefined ? { size: e.size } : {}) }]
+        : [],
+    );
+    return { entries, truncated: data.truncated };
+  }
 }
+
+const isEntryType = (type: string | undefined): type is TreeEntry["type"] =>
+  type === "blob" || type === "tree" || type === "commit";
 
 const params = (pr: PrRef) => ({ owner: pr.owner, repo: pr.repo, pull_number: pr.number });

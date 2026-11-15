@@ -41,7 +41,24 @@ export interface ExistingReview {
   commitId: string | null;
 }
 
-// [GH:API] Only the four GitHub calls Diffwise makes, behind an interface.
+// A changed file as GET /pulls/{n}/files returns it. `patch` is absent for binary and very
+// large files; the endpoint stops at 3000 files.
+export interface PullRequestFile {
+  filename: string;
+  previousFilename?: string; // set for renames and copies
+  status: "added" | "removed" | "modified" | "renamed" | "copied" | "changed" | "unchanged";
+  additions: number;
+  deletions: number;
+  patch?: string;
+}
+
+export interface TreeEntry {
+  path: string;
+  type: "blob" | "tree" | "commit"; // commit = a submodule
+  size?: number; // blobs only
+}
+
+// [GH:API] Only the GitHub calls Diffwise makes, behind an interface.
 // WHY: the publisher and the adapters depend on this, not on Octokit, so tests run against a
 //      fake and Phase 4's App can swap the auth without touching the review logic.
 export interface GitHubClient {
@@ -49,4 +66,11 @@ export interface GitHubClient {
   listReviews(pr: PrRef): Promise<ExistingReview[]>;
   createReview(pr: PrRef, review: NewReview): Promise<{ id: number; url: string }>;
   updateReview(pr: PrRef, reviewId: number, body: string): Promise<void>; // the body only
+  // Read-only calls for the App, which reviews through the API instead of a checkout.
+  listPullRequestFiles(pr: PrRef): Promise<PullRequestFile[]>;
+  // File text at a commit; undefined when the path doesn't exist there or isn't a file.
+  getFileContent(repo: RepoRef, ref: string, path: string): Promise<string | undefined>;
+  getTree(repo: RepoRef, sha: string): Promise<{ entries: TreeEntry[]; truncated: boolean }>;
 }
+
+export type RepoRef = Pick<PrRef, "owner" | "repo">;

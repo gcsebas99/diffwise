@@ -19,6 +19,9 @@ export const ConfigSchema = z.object({
   GITHUB_INSTALLATION_ID: z.coerce.number().int().positive().optional(), // for scripts/app-token.ts
   GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
   PORT: positiveInt(3000), // Render sets it; 3000 locally
+  ALLOWED_INSTALLATIONS: z.string().optional(), // "181424445,42"; the App refuses to start without
+  DAILY_REVIEW_CAP: positiveInt(50),
+  APP_CONCURRENCY: z.coerce.number().int().min(1).max(2).default(1),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

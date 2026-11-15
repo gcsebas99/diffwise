@@ -60870,6 +60870,12 @@ var OctokitGitHubClient = class {
     this.octokit = new Octokit2({
       auth: options.token,
       userAgent: "diffwise",
+      // Octokit logs every failed request itself, including 404s we expect (a file that
+      // doesn't exist). Errors are thrown to us and reported there, so its own copy is noise.
+      log: { debug: () => {
+      }, info: () => {
+      }, warn: console.warn, error: () => {
+      } },
       ...options.baseUrl ? { baseUrl: options.baseUrl } : {},
       ...options.fetch ? { request: { fetch: options.fetch } } : {}
     });
@@ -60912,7 +60918,49 @@ var OctokitGitHubClient = class {
   async updateReview(pr, reviewId, body) {
     await this.octokit.rest.pulls.updateReview({ ...params(pr), review_id: reviewId, body });
   }
+  async listPullRequestFiles(pr) {
+    const files = await this.octokit.paginate(this.octokit.rest.pulls.listFiles, {
+      ...params(pr),
+      per_page: 100
+    });
+    return files.map((f) => ({
+      filename: f.filename,
+      ...f.previous_filename ? { previousFilename: f.previous_filename } : {},
+      status: f.status,
+      additions: f.additions,
+      deletions: f.deletions,
+      ...f.patch !== void 0 ? { patch: f.patch } : {}
+    }));
+  }
+  async getFileContent(repo, ref, path4) {
+    try {
+      const { data } = await this.octokit.rest.repos.getContent({
+        owner: repo.owner,
+        repo: repo.repo,
+        path: path4,
+        ref,
+        mediaType: { format: "raw" }
+      });
+      return typeof data === "string" ? data : void 0;
+    } catch (err) {
+      if (err.status === 404) return void 0;
+      throw err;
+    }
+  }
+  async getTree(repo, sha) {
+    const { data } = await this.octokit.rest.git.getTree({
+      owner: repo.owner,
+      repo: repo.repo,
+      tree_sha: sha,
+      recursive: "1"
+    });
+    const entries = data.tree.flatMap(
+      (e) => e.path && isEntryType(e.type) ? [{ path: e.path, type: e.type, ...e.size !== void 0 ? { size: e.size } : {} }] : []
+    );
+    return { entries, truncated: data.truncated };
+  }
 };
+var isEntryType = (type) => type === "blob" || type === "tree" || type === "commit";
 var params = (pr) => ({ owner: pr.owner, repo: pr.repo, pull_number: pr.number });
 
 // src/adapters/action/context.ts
@@ -80741,7 +80789,22 @@ var ConfigSchema = external_exports.object({
   DIFFWISE_MAX_STEPS: positiveInt(20),
   DIFFWISE_TOKEN_BUDGET: positiveInt(8e4),
   DIFFWISE_DEADLINE_SECONDS: positiveInt(600),
-  DIFFWISE_TOOL_OUTPUT_MAX_CHARS: positiveInt(6e3)
+  DIFFWISE_TOOL_OUTPUT_MAX_CHARS: positiveInt(6e3),
+  // GitHub App (Phase 4). Optional here; the App adapter checks for them when it starts.
+  GITHUB_APP_CLIENT_ID: external_exports.string().min(1).optional(),
+  GITHUB_PRIVATE_KEY: external_exports.string().min(1).optional(),
+  // the PEM itself (Render secret)
+  GITHUB_PRIVATE_KEY_PATH: external_exports.string().min(1).optional(),
+  // or a path to it (local dev)
+  GITHUB_INSTALLATION_ID: external_exports.coerce.number().int().positive().optional(),
+  // for scripts/app-token.ts
+  GITHUB_WEBHOOK_SECRET: external_exports.string().min(1).optional(),
+  PORT: positiveInt(3e3),
+  // Render sets it; 3000 locally
+  ALLOWED_INSTALLATIONS: external_exports.string().optional(),
+  // "181424445,42"; the App refuses to start without
+  DAILY_REVIEW_CAP: positiveInt(50),
+  APP_CONCURRENCY: external_exports.coerce.number().int().min(1).max(2).default(1)
 });
 function loadConfig(env = process.env) {
   const cleaned = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== ""));

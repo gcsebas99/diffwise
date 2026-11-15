@@ -19,7 +19,7 @@
     "build:action": "tsx scripts/build-action.ts",
     "concepts": "tsx scripts/concepts.ts",
     "app:token": "tsx --env-file-if-exists=.env scripts/app-token.ts",
-    "app:dev": "tsx --env-file-if-exists=.env src/adapters/app/dev.ts"
+    "app:dev": "tsx --env-file-if-exists=.env src/adapters/app/main.ts"
   },
   "dependencies": {
     "@actions/core": "^3.0.1",

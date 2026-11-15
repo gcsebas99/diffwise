@@ -10,6 +10,8 @@ describe("loadConfig", () => {
       DIFFWISE_DEADLINE_SECONDS: 600,
       DIFFWISE_TOOL_OUTPUT_MAX_CHARS: 6_000,
       PORT: 3000,
+      DAILY_REVIEW_CAP: 50,
+      APP_CONCURRENCY: 1,
     });
   });
 

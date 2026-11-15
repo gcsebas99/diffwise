@@ -4,7 +4,10 @@ import type {
   NewReview,
   PrRef,
   PullRequest,
+  PullRequestFile,
+  RepoRef,
   ReviewComment,
+  TreeEntry,
 } from "./client.js";
 
 export interface StoredReview extends ExistingReview {
@@ -18,6 +21,10 @@ export class FakeGitHubClient implements GitHubClient {
   readonly calls: { method: keyof GitHubClient; args: unknown[] }[] = [];
   readonly reviews: StoredReview[] = [];
   failUpdates = false; // simulate GitHub refusing an edit, e.g. a review we don't own
+  // The repo as the App sees it through the API: changed files, and file text per commit.
+  files: PullRequestFile[] = [];
+  readonly contents = new Map<string, string>(); // `${ref}:${path}` → text
+  treeTruncated = false;
   private readonly pull: PullRequest;
   private nextId = 1;
 
@@ -48,6 +55,34 @@ export class FakeGitHubClient implements GitHubClient {
     const review = this.reviews.find((r) => r.id === reviewId);
     if (this.failUpdates || !review) throw new Error(`Cannot update review ${reviewId}`);
     review.body = body;
+  }
+
+  async listPullRequestFiles(pr: PrRef): Promise<PullRequestFile[]> {
+    this.record("listPullRequestFiles", pr);
+    return structuredClone(this.files);
+  }
+
+  async getFileContent(repo: RepoRef, ref: string, path: string): Promise<string | undefined> {
+    this.record("getFileContent", repo, ref, path);
+    return this.contents.get(`${ref}:${path}`);
+  }
+
+  async getTree(repo: RepoRef, sha: string): Promise<{ entries: TreeEntry[]; truncated: boolean }> {
+    this.record("getTree", repo, sha);
+    const prefix = `${sha}:`;
+    const entries = [...this.contents]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, text]) => ({
+        path: key.slice(prefix.length),
+        type: "blob" as const,
+        size: text.length,
+      }));
+    return { entries, truncated: this.treeTruncated };
+  }
+
+  // Seeds a file at a commit, for getFileContent and getTree.
+  setFile(ref: string, path: string, text: string): void {
+    this.contents.set(`${ref}:${path}`, text);
   }
 
   // Seeds a review that already exists, e.g. our own from an earlier push, or a human's.
