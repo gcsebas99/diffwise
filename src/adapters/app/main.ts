@@ -5,7 +5,7 @@ import { AnthropicModel } from "../../model/anthropic.js";
 import { OctokitGitHubClient } from "../github/octokit.js";
 import { InstallationTokens, loadAppCredentials } from "./auth.js";
 import { JobQueue, parseInstallations } from "./jobs.js";
-import { runReviewJob } from "./review-job.js";
+import { type ReviewJobDeps, reportSkipped, runReviewJob } from "./review-job.js";
 import { createServer, type Log } from "./server.js";
 import { DeliveryLog } from "./webhook.js";
 
@@ -26,20 +26,20 @@ const model =
     : undefined;
 if (!model) log("no ANTHROPIC_API_KEY or DIFFWISE_MODEL: deterministic checks only");
 
-const reviewedHeads = new Map<string, string>();
+const deps: ReviewJobDeps = {
+  tokens,
+  createGitHub: (token) => new OctokitGitHubClient({ token }),
+  config,
+  reviewedHeads: new Map(),
+  ...(model ? { model } : {}),
+};
 const queue = new JobQueue({
   concurrency: config.APP_CONCURRENCY,
   dailyCap: config.DAILY_REVIEW_CAP,
   allowedInstallations,
   run: async (job) => {
     const started = Date.now();
-    const result = await runReviewJob(job, {
-      tokens,
-      createGitHub: (token) => new OctokitGitHubClient({ token }),
-      config,
-      reviewedHeads,
-      ...(model ? { model } : {}),
-    });
+    const result = await runReviewJob(job, deps);
     log(`job ${result.status}`, {
       deliveryId: job.deliveryId,
       pr: `${job.owner}/${job.repo}#${job.number}`,
@@ -47,7 +47,15 @@ const queue = new JobQueue({
       ms: Date.now() - started,
     });
   },
-  onSkipped: (job, reason) => log("job skipped", { deliveryId: job.deliveryId, reason }),
+  onSkipped: (job, reason) => {
+    log("job skipped", { deliveryId: job.deliveryId, reason });
+    reportSkipped(job, reason, deps).catch((err: unknown) =>
+      log("could not report the skip", {
+        deliveryId: job.deliveryId,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  },
   onError: (job, err) =>
     log("job failed", {
       deliveryId: job.deliveryId,

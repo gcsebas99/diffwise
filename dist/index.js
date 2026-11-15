@@ -60959,7 +60959,49 @@ var OctokitGitHubClient = class {
     );
     return { entries, truncated: data.truncated };
   }
+  async createCheckRun(repo, check2) {
+    const { data } = await this.octokit.rest.checks.create({
+      owner: repo.owner,
+      repo: repo.repo,
+      name: check2.name,
+      head_sha: check2.headSha,
+      ...checkBody(check2)
+    });
+    return { id: data.id, url: data.html_url ?? "" };
+  }
+  async updateCheckRun(repo, id, update) {
+    await this.octokit.rest.checks.update({
+      owner: repo.owner,
+      repo: repo.repo,
+      check_run_id: id,
+      ...checkBody(update)
+    });
+  }
 };
+function checkBody(update) {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  return {
+    ...update.status ? { status: update.status } : {},
+    ...update.status === "in_progress" ? { started_at: now } : {},
+    ...update.conclusion ? { conclusion: update.conclusion, completed_at: now } : {},
+    ...update.detailsUrl ? { details_url: update.detailsUrl } : {},
+    ...update.output ? { output: outputBody(update.output) } : {}
+  };
+}
+var outputBody = (output2) => ({
+  title: output2.title,
+  summary: output2.summary,
+  ...output2.annotations ? {
+    annotations: output2.annotations.map((a) => ({
+      path: a.path,
+      start_line: a.startLine,
+      end_line: a.endLine,
+      annotation_level: a.level,
+      title: a.title,
+      message: a.message
+    }))
+  } : {}
+});
 var isEntryType = (type) => type === "blob" || type === "tree" || type === "commit";
 var params = (pr) => ({ owner: pr.owner, repo: pr.repo, pull_number: pr.number });
 

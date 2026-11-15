@@ -1,5 +1,7 @@
 import { Octokit } from "@octokit/rest";
 import type {
+  CheckOutput,
+  CheckRunUpdate,
   ExistingReview,
   GitHubClient,
   NewReview,
@@ -121,7 +123,59 @@ export class OctokitGitHubClient implements GitHubClient {
     );
     return { entries, truncated: data.truncated };
   }
+
+  async createCheckRun(
+    repo: RepoRef,
+    check: { name: string; headSha: string } & CheckRunUpdate,
+  ): Promise<{ id: number; url: string }> {
+    const { data } = await this.octokit.rest.checks.create({
+      owner: repo.owner,
+      repo: repo.repo,
+      name: check.name,
+      head_sha: check.headSha,
+      ...checkBody(check),
+    });
+    return { id: data.id, url: data.html_url ?? "" };
+  }
+
+  async updateCheckRun(repo: RepoRef, id: number, update: CheckRunUpdate): Promise<void> {
+    await this.octokit.rest.checks.update({
+      owner: repo.owner,
+      repo: repo.repo,
+      check_run_id: id,
+      ...checkBody(update),
+    });
+  }
 }
+
+// Our camelCase check fields → the REST body. Timestamps are set here, from the status.
+function checkBody(update: CheckRunUpdate) {
+  const now = new Date().toISOString();
+  return {
+    ...(update.status ? { status: update.status } : {}),
+    ...(update.status === "in_progress" ? { started_at: now } : {}),
+    ...(update.conclusion ? { conclusion: update.conclusion, completed_at: now } : {}),
+    ...(update.detailsUrl ? { details_url: update.detailsUrl } : {}),
+    ...(update.output ? { output: outputBody(update.output) } : {}),
+  };
+}
+
+const outputBody = (output: CheckOutput) => ({
+  title: output.title,
+  summary: output.summary,
+  ...(output.annotations
+    ? {
+        annotations: output.annotations.map((a) => ({
+          path: a.path,
+          start_line: a.startLine,
+          end_line: a.endLine,
+          annotation_level: a.level,
+          title: a.title,
+          message: a.message,
+        })),
+      }
+    : {}),
+});
 
 const isEntryType = (type: string | undefined): type is TreeEntry["type"] =>
   type === "blob" || type === "tree" || type === "commit";

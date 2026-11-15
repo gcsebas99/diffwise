@@ -1,4 +1,7 @@
 import type {
+  CheckAnnotation,
+  CheckConclusion,
+  CheckRunUpdate,
   ExistingReview,
   GitHubClient,
   NewReview,
@@ -9,6 +12,18 @@ import type {
   ReviewComment,
   TreeEntry,
 } from "./client.js";
+
+export interface StoredCheckRun {
+  id: number;
+  name: string;
+  headSha: string;
+  status: "in_progress" | "completed";
+  conclusion?: CheckConclusion;
+  title?: string;
+  summary?: string;
+  annotations: CheckAnnotation[]; // appended across updates, as GitHub does
+  detailsUrl?: string;
+}
 
 export interface StoredReview extends ExistingReview {
   comments: ReviewComment[];
@@ -25,6 +40,7 @@ export class FakeGitHubClient implements GitHubClient {
   files: PullRequestFile[] = [];
   readonly contents = new Map<string, string>(); // `${ref}:${path}` → text
   treeTruncated = false;
+  readonly checkRuns: StoredCheckRun[] = [];
   private readonly pull: PullRequest;
   private nextId = 1;
 
@@ -78,6 +94,44 @@ export class FakeGitHubClient implements GitHubClient {
         size: text.length,
       }));
     return { entries, truncated: this.treeTruncated };
+  }
+
+  async createCheckRun(
+    repo: RepoRef,
+    check: { name: string; headSha: string } & CheckRunUpdate,
+  ): Promise<{ id: number; url: string }> {
+    this.record("createCheckRun", repo, check);
+    const id = this.nextId++;
+    this.checkRuns.push({
+      id,
+      name: check.name,
+      headSha: check.headSha,
+      status: check.status ?? "in_progress",
+      annotations: [],
+    });
+    this.applyCheck(id, check);
+    return { id, url: `https://github.com/${repo.owner}/${repo.repo}/runs/${id}` };
+  }
+
+  async updateCheckRun(repo: RepoRef, id: number, update: CheckRunUpdate): Promise<void> {
+    this.record("updateCheckRun", repo, id, update);
+    this.applyCheck(id, update);
+  }
+
+  private applyCheck(id: number, update: CheckRunUpdate): void {
+    const run = this.checkRuns.find((r) => r.id === id);
+    if (!run) throw new Error(`no check run ${id}`);
+    if (update.status) run.status = update.status;
+    if (update.conclusion) {
+      run.conclusion = update.conclusion;
+      run.status = "completed";
+    }
+    if (update.detailsUrl) run.detailsUrl = update.detailsUrl;
+    if (update.output) {
+      run.title = update.output.title;
+      run.summary = update.output.summary;
+      run.annotations.push(...(update.output.annotations ?? []));
+    }
   }
 
   // Seeds a file at a commit, for getFileContent and getTree.

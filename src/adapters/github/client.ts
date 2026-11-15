@@ -58,6 +58,30 @@ export interface TreeEntry {
   size?: number; // blobs only
 }
 
+export interface CheckAnnotation {
+  path: string;
+  startLine: number;
+  endLine: number;
+  level: "notice" | "warning" | "failure";
+  title: string; // ≤ 255 chars
+  message: string;
+}
+
+export interface CheckOutput {
+  title: string;
+  summary: string; // markdown, ≤ 65,535 chars
+  annotations?: CheckAnnotation[]; // ≤ 50 per request; each update appends
+}
+
+export type CheckConclusion = "success" | "failure" | "neutral" | "skipped";
+
+export interface CheckRunUpdate {
+  status?: "in_progress" | "completed";
+  conclusion?: CheckConclusion; // required with status "completed"
+  output?: CheckOutput;
+  detailsUrl?: string;
+}
+
 // [GH:API] Only the GitHub calls Diffwise makes, behind an interface.
 // WHY: the publisher and the adapters depend on this, not on Octokit, so tests run against a
 //      fake and Phase 4's App can swap the auth without touching the review logic.
@@ -71,6 +95,12 @@ export interface GitHubClient {
   // File text at a commit; undefined when the path doesn't exist there or isn't a file.
   getFileContent(repo: RepoRef, ref: string, path: string): Promise<string | undefined>;
   getTree(repo: RepoRef, sha: string): Promise<{ entries: TreeEntry[]; truncated: boolean }>;
+  // Check runs: GitHub Apps only. The Action's verdict is its job result instead.
+  createCheckRun(
+    repo: RepoRef,
+    check: { name: string; headSha: string } & CheckRunUpdate,
+  ): Promise<{ id: number; url: string }>;
+  updateCheckRun(repo: RepoRef, id: number, update: CheckRunUpdate): Promise<void>;
 }
 
 export type RepoRef = Pick<PrRef, "owner" | "repo">;

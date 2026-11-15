@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { type ReviewJobDeps, runReviewJob } from "../../../src/adapters/app/review-job.js";
+import {
+  type ReviewJobDeps,
+  reportSkipped,
+  runReviewJob,
+} from "../../../src/adapters/app/review-job.js";
 import type { ReviewJob } from "../../../src/adapters/app/webhook.js";
 import { FakeGitHubClient } from "../../../src/adapters/github/fake.js";
 import { loadConfig } from "../../../src/config.js";
@@ -124,7 +128,7 @@ describe("runReviewJob", () => {
     github.contents.clear();
     expect(await runReviewJob(job, deps)).toMatchObject({
       status: "skipped",
-      reason: "no .review-rules.yaml on the base branch",
+      reason: "no .review-rules.yaml on the base branch; add one to enable Diffwise",
     });
     expect(github.reviews).toHaveLength(0);
   });
@@ -146,5 +150,73 @@ describe("runReviewJob", () => {
       reviewUrl: undefined,
     });
     expect(github.reviews).toHaveLength(0);
+  });
+
+  it("completes a failure check run before posting the review, then links it", async () => {
+    const { github, deps } = setup();
+    await runReviewJob(job, deps);
+    expect(github.checkRuns).toHaveLength(1);
+    expect(github.checkRuns[0]).toMatchObject({
+      name: "Diffwise",
+      headSha: HEAD,
+      status: "completed",
+      conclusion: "failure",
+      title: "1 blocking finding",
+      detailsUrl: github.reviews[0] ? expect.stringContaining("/pull/7#r") : undefined,
+    });
+    expect(github.checkRuns[0]?.annotations.map((a) => [a.path, a.startLine, a.level])).toEqual([
+      ["src/config.ts", 1, "failure"],
+    ]);
+    const order = github.calls.map((c) => c.method).filter((m) => /CheckRun|createReview/.test(m));
+    expect(order).toEqual(["createCheckRun", "updateCheckRun", "createReview", "updateCheckRun"]);
+  });
+
+  it("a crash mid-review completes the check as neutral and still throws", async () => {
+    const { github, deps } = setup();
+    github.listPullRequestFiles = async () => {
+      throw new Error("GitHub 502 listing files");
+    };
+    await expect(runReviewJob(job, deps)).rejects.toThrow("GitHub 502 listing files");
+    expect(github.checkRuns[0]).toMatchObject({
+      status: "completed",
+      conclusion: "neutral",
+      title: "Review failed to run",
+    });
+    expect(github.checkRuns[0]?.summary).toContain("GitHub 502 listing files");
+    expect(deps.reviewedHeads.size).toBe(0); // not reviewed, so a retry runs again
+  });
+
+  it("if posting the review fails, the check keeps the real verdict", async () => {
+    const { github, deps } = setup();
+    github.createReview = async () => {
+      throw new Error("422 line outside the diff");
+    };
+    await expect(runReviewJob(job, deps)).rejects.toThrow("422");
+    expect(github.checkRuns[0]).toMatchObject({ conclusion: "failure" });
+  });
+
+  it("no rules file completes the check as skipped", async () => {
+    const { github, deps } = setup();
+    github.contents.clear();
+    await runReviewJob(job, deps);
+    expect(github.checkRuns[0]).toMatchObject({ conclusion: "skipped", title: "Not reviewed" });
+  });
+
+  it("a head already reviewed creates no second check run", async () => {
+    const { github, deps } = setup();
+    await runReviewJob(job, deps);
+    await runReviewJob({ ...job, deliveryId: "d2" }, deps);
+    expect(github.checkRuns).toHaveLength(1);
+  });
+
+  it("reportSkipped puts a completed neutral check on the webhook's commit", async () => {
+    const { github, deps } = setup();
+    await reportSkipped(job, "daily review cap (50) reached", deps);
+    expect(github.checkRuns[0]).toMatchObject({
+      headSha: OLD_HEAD,
+      status: "completed",
+      conclusion: "neutral",
+      summary: "Diffwise didn't review this commit: daily review cap (50) reached.",
+    });
   });
 });
