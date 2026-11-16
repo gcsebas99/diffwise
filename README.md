@@ -261,7 +261,7 @@ CI fails if it's stale). The questions and answers behind them are in
 | Evals: cases, record/replay, graders, reports, CI gate | [`evals/`](evals/), [`src/model/replay.ts`](src/model/replay.ts) |
 | Observability: JSON logs, redaction | [`src/adapters/app/log.ts`](src/adapters/app/log.ts) |
 
-## What I'd do next
+## What's next
 
 - **State that survives restarts:** delivery IDs, daily caps and reviewed heads in Redis (or
   Postgres), so a restart or a free-tier wake-up doesn't reset them, and two instances agree.
