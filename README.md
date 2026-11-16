@@ -1,6 +1,9 @@
 # Diffwise
 
-An AI agent that reviews pull requests against rules defined in the target repo
+Every team has review rules that live in people's heads: route changes need a test, migrations
+need a rollback, tokens never get logged. On a busy day, reviewers miss them.
+
+Diffwise is an AI agent that reviews pull requests against rules defined in the target repo
 (`.review-rules.yaml`). It posts one review with inline comments and a summary, and the
 **verdict is computed by code**: any `blocking` finding fails the check, so branch protection
 can block the merge.
@@ -9,14 +12,22 @@ It ships two ways from one core engine: a **GitHub Action** that runs in the tar
 and a **GitHub App** (a webhook service on Render) that repos install with one click. The same
 engine also runs as a local CLI.
 
+**At a glance:** 18 eval cases, 54/54 trials passed on `claude-haiku-5-5` · about $0.0006 per
+model review · rules that code can check run for $0, and moving them to the model added 52% cost
+and 3 false positives ([ablation](docs/ablations.md)).
+
 **Learning takeaways:** [`docs/learning-takeaways.md`](docs/learning-takeaways.md) collects what
 building this taught, as questions and answers by theme, each pointing at the code.
 
 **Live demo:** [gcsebas99/diffwise-demo](https://github.com/gcsebas99/diffwise-demo/pulls), six
-seeded PRs, three blocked by Diffwise, one with a prompt injection it ignores.
+seeded PRs: four blocked by Diffwise (one of them by a code check, no model call), one clean
+refactor it passes, and one prompt injection it ignores.
 
-<!-- Screenshots: a FAIL review with an inline comment (diffwise-demo#1), the blocked merge box,
-     and the job summary page. -->
+| A failing review with an inline comment | The merge, blocked by the required check |
+|---|---|
+| ![Diffwise FAIL review on diffwise-demo#1](docs/images/review-fail-inline.png) | ![Merge blocked by the Diffwise check](docs/images/merge-blocked.png) |
+
+![Diffwise review summary: verdict, findings, model, prompt version, cost](docs/images/review-summary.png)
 
 ## How it works
 
@@ -98,10 +109,33 @@ actually runs:
   `neutral` (the review didn't finish, or the daily cap was reached) or `skipped` (no rules file).
 
 A required check that nothing reports stays **"Expected — waiting for status to be reported"** and
-blocks the merge forever. The demo repo shows this right now: its ruleset still requires the
-Action's `Diffwise review` while the Action is disabled and the App reviews PRs, so PRs there wait
-on a check that never arrives. Require only the check of the path you use; requiring both means
-running both, and paying for two reviews.
+blocks the merge forever: requiring the Action's check while only the App runs (or the other way
+round) leaves every PR waiting on a check that never arrives. Require only the check of the path
+you use; requiring both means running both, and paying for two reviews. The demo repo uses the
+App: its ruleset on `main` requires **`Diffwise`** from the App, and its workflow stays in the
+repo, disabled, as the Action example.
+
+## How it compares
+
+Diffwise is a learning project, not a product. These are the closest tools that do this at
+scale, and the ones worth using if you want this in production:
+
+| | Diffwise | [CodeRabbit](https://www.coderabbit.ai) | [Qodo PR-Agent](https://github.com/qodo-ai/pr-agent) |
+|---|---|---|---|
+| Where rules live | `.review-rules.yaml` in the repo | `.coderabbit.yaml`, plus guideline files it detects (AGENTS.md, CLAUDE.md and others) | A compliance checklist; hosted Qodo also reads AGENTS.md / CLAUDE.md |
+| Code checks + LLM | Chosen per rule: `deterministic:<name>` or `llm` | 50+ linters and security tools feed the AI review | LLM review |
+| Can block a merge | Yes: verdict computed by code, enforced by a required check | Yes: pre-merge checks in "error" mode fail a check you can require | Advisory suggestions |
+| Runs as | CLI, GitHub Action, GitHub App | Hosted service (self-hosted on Enterprise) | CLI, GitHub Action, Docker, webhooks; hosted as Qodo |
+| Model | Claude, your own API key | Run by CodeRabbit; your own model on self-hosted | Your choice (GPT, Claude, Gemini, others) |
+| Cost | Your API usage (about $0.0006 per model review on the demo) | Paid plans; custom pre-merge checks on Team and above | Open source (MIT) with your own key; hosted Qodo is paid |
+
+**What's different here:** each rule says whether code or the model checks it, and the model
+never decides the verdict. It reports findings, code validates them, and a blocking finding fails
+the check. The tradeoff is the narrow scope: Diffwise only checks the rules you write. It doesn't
+look for general bugs, style issues or security problems the way these tools do.
+
+<sub>Comparison as of November 2026, from each tool's public docs. These products change
+quickly; check their docs for current features and pricing.</sub>
 
 ## Use it in a repo (GitHub Action)
 
@@ -311,3 +345,7 @@ pnpm app:token          # check the App's JWT and installation token against Git
 
 Unit tests never call the Anthropic or GitHub APIs: they use a scripted model, a fake GitHub
 client and throwaway git repos.
+
+## License
+
+[MIT](LICENSE)
