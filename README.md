@@ -23,9 +23,9 @@ building this taught, as questions and answers by theme, each pointing at the co
 seeded PRs: four blocked by Diffwise (one of them by a code check, no model call), one clean
 refactor it passes, and one prompt injection it ignores.
 
-| A failing review with an inline comment | The merge, blocked by the required check |
+| An inline comment and check annotation on the diff (Action run) | The App's comment, and the merge blocked by its required check |
 |---|---|
-| ![Diffwise FAIL review on diffwise-demo#1](docs/images/review-fail-inline.png) | ![Merge blocked by the Diffwise check](docs/images/merge-blocked.png) |
+| ![Diffwise inline comment and check annotation from the Action on diffwise-demo#1](docs/images/review-fail-inline.png) | ![The App's inline comment, and the merge blocked by the required Diffwise check](docs/images/merge-blocked.png) |
 
 ![Diffwise review summary: verdict, findings, model, prompt version, cost](docs/images/review-summary.png)
 
