@@ -88,9 +88,6 @@ const server = serve({ fetch: app.fetch, port: config.PORT, hostname: "0.0.0.0" 
   log("listening", { port: info.port, allowedInstallations: [...allowedInstallations] }),
 );
 
-// Render sends SIGTERM before replacing the instance: stop taking webhooks, let running
-// reviews finish (up to 50 s, inside render.yaml's 60 s maxShutdownDelaySeconds), then exit. Waiting jobs are lost: they already got a 202, so
-// GitHub won't retry them; redeliver from the App settings.
 // A bug that escapes every handler: log it as JSON so Render shows why, then exit and let
 // Render restart a clean process rather than run on in an unknown state.
 process.on("unhandledRejection", (err) => {
@@ -98,9 +95,12 @@ process.on("unhandledRejection", (err) => {
   process.exit(1);
 });
 
+// Render sends SIGTERM before replacing the instance: stop taking webhooks, let running
+// reviews finish (up to 25 s, inside Render's 30 s before SIGKILL), then exit. Waiting jobs
+// are lost: they already got a 202, so GitHub won't retry them; redeliver from App settings.
 process.on("SIGTERM", () => {
   log("shutting down", queue.size);
   server.close();
-  const timeout = new Promise((resolve) => setTimeout(resolve, 50_000).unref());
+  const timeout = new Promise((resolve) => setTimeout(resolve, 25_000).unref());
   void Promise.race([queue.idle(), timeout]).then(() => process.exit(0));
 });

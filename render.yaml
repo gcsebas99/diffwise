@@ -10,8 +10,8 @@ services:
     healthCheckPath: /healthz
     # Deploy main only after CI (tests, lint, replay evals) passes on that commit.
     autoDeployTrigger: checksPass
-    # SIGTERM, then SIGKILL after this: main.ts drains running reviews for up to 50 s.
-    maxShutdownDelaySeconds: 60
+    # No maxShutdownDelaySeconds: the free plan rejects it, so SIGKILL comes 30 s after SIGTERM
+    # (Render's default) and main.ts drains running reviews for up to 25 s.
     envVars:
       # IDs and settings, not secrets.
       - key: GITHUB_APP_CLIENT_ID
