@@ -35,7 +35,7 @@ export function extract(source: string, file: string): Concept[] {
     const m = TAG_LINE.exec(lines[i] ?? "");
     if (!m?.[1]) continue;
     const body: string[] = [];
-    // Collect the WHY:/INTERVIEW: continuation lines directly under the tag.
+    // Collect the WHY: lines (and their wrapped continuations) directly under the tag.
     for (let j = i + 1; j < lines.length; j++) {
       const c = CONT_LINE.exec(lines[j] ?? "");
       if (!c || TAG_LINE.test(lines[j] ?? "")) break;
@@ -54,6 +54,9 @@ async function main() {
       concepts.push(...extract(await readFile(file, "utf8"), relative(".", file)));
     }
   }
+  // readdir order differs between filesystems (macOS vs CI's Linux): sort, so the file is
+  // byte-identical wherever it's generated and the CI staleness check means something.
+  concepts.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
   const byTag = Map.groupBy(concepts, (c) => c.tag);
   const tags = [...byTag.keys()].sort();
   const parts = [

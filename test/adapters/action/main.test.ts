@@ -175,7 +175,7 @@ describe("action run", () => {
     await t.start();
     expect(t.created).toEqual({ model: 0, github: 0 });
     expect(t.io.outputs).toEqual({ verdict: "pass" });
-    expect(t.io.summaries).toEqual([expect.stringContaining("add the `live-review` label")]);
+    expect(t.io.summaries).toEqual([expect.stringContaining("Add the `live-review` label")]);
     expect(t.io.failed).toBeUndefined();
   });
 

@@ -21,8 +21,6 @@ export interface CaseRepo {
 // WHY: trials must not share state (one run's files can't leak into the next), and the input
 //      must be identical every time, or a replayed cassette and a live run review different PRs.
 //      No user git config (hooks, signing, autocrlf) and fixed identity and dates make it so.
-// INTERVIEW: "How do you make agent evals reproducible?" → isolated, pinned inputs per trial;
-//            record/replay for the model; only then compare runs.
 const GIT_ENV = {
   ...process.env,
   GIT_CONFIG_GLOBAL: "/dev/null",

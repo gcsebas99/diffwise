@@ -14,8 +14,6 @@ export class CassetteMissError extends HarnessError {
 // [HARNESS:EVAL] Serves recorded responses by request hash; anything unrecorded fails loudly.
 // WHY: a replay must only ever answer the exact question that was recorded. If the prompt,
 //      a tool or the diff changed, serving the old answer would test nothing and hide it.
-// INTERVIEW: "How do you run agent evals in CI?" → record real runs once, replay them by
-//            request hash; a miss means the input changed, so re-record and review the diff.
 export class ReplayModel implements ModelClient {
   private readonly modelName: string;
   private readonly path: string;

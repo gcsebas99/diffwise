@@ -48,8 +48,6 @@ const base64url = (value: object) => Buffer.from(JSON.stringify(value)).toString
 // WHY: the JWT proves "I hold the App's key" and can do almost nothing but ask for an
 //      installation token, so it lives 9 minutes (GitHub's cap is 10). iat is 60s in the past
 //      because a server clock running ahead of GitHub's makes the token "issued in the future".
-// INTERVIEW: "Walk me through GitHub App auth" → sign a JWT (iss = client ID), POST it to
-//            /app/installations/{id}/access_tokens, use the 1-hour installation token.
 export function createAppJwt(credentials: AppCredentials, nowMs = Date.now()): string {
   const now = Math.floor(nowMs / 1000);
   const header = base64url({ alg: "RS256", typ: "JWT" });
@@ -79,8 +77,6 @@ export interface TokenScope {
 // [GH:AUTH] Down-scope: a review's token gets one repo and only what a review uses.
 // WHY: if a review is hijacked (say, an injection that reaches a tool), the token it could
 //      leak works on that PR's repo alone, can't touch issues or settings, and dies in an hour.
-// INTERVIEW: "What does a down-scoped token buy you?" → blast radius: least privilege per
-//            job, not per App, so one bad review can't reach the other repos.
 export const REVIEW_PERMISSIONS: Record<string, Permission> = {
   pull_requests: "write",
   contents: "read",
@@ -137,8 +133,6 @@ interface CacheEntry {
 // WHY: minting a token per API call wastes a round trip and GitHub's rate limit; refreshing
 //      with 5 minutes left means a review never starts on a token that dies mid-review.
 //      Concurrent callers share the in-flight request instead of each minting a token.
-// INTERVIEW: "Why two steps?" → the App key never leaves the server and only mints tokens;
-//            what does the work is per installation, scoped and short-lived.
 export class InstallationTokens {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly fetch: typeof globalThis.fetch;

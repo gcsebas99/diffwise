@@ -34,8 +34,6 @@ export class ToolRegistry {
   // [HARNESS:TOOLS] execute() never throws: every failure becomes ok=false with a next step.
   // WHY: the loop must keep running so the model can self-correct; a crash would lose the
   //      whole review over one bad call. Retries are bounded by the loop's step cap (1.8).
-  // INTERVIEW: "Where do you validate tool calls?" → at one choke point, before run(); the
-  //            model's arguments are untrusted input like any other.
   async execute(name: string, rawArgs: unknown, ctx: ToolContext): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) return fail(`unknown tool '${name}'. Available tools: ${this.names().join(", ")}`);

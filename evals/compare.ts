@@ -25,8 +25,6 @@ export interface Comparison {
 // WHY: a prompt change can fix two cases and break two others with the same total; the
 //      regressions list is what decides whether it ships. Warnings flag unfair comparisons
 //      (different model, suite or k) so a model swap isn't read as a prompt improvement.
-// INTERVIEW: "Recall up 10%, false positives doubled: ship it?" → compare per rule and per
-//            case; for a review bot, the precision drop usually costs more than recall buys.
 export function compareReports(a: Report, b: Report): Comparison {
   const warnings: string[] = [];
   const differs = (label: string, x: unknown, y: unknown) => {

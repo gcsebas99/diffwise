@@ -19,8 +19,6 @@ export class AnthropicModel implements ModelClient {
     //   connection errors, with exponential backoff that honors retry-after headers.
     // WHY: transient API errors are normal at scale and the model can't fix them, so retry
     //      quietly; 4xx client errors (bad request, auth) won't succeed on retry, so they throw.
-    // INTERVIEW: "How do you handle rate limits?" → bounded retries with backoff + jitter,
-    //            respect retry-after, cap total time with a timeout, then fail visibly.
     this.client = new Anthropic({
       apiKey: options.apiKey,
       maxRetries: 4,

@@ -16,13 +16,14 @@ export interface PublishInput {
   model: string;
   cost: number | undefined;
   modelSkipped?: ModelSkipped; // only the deterministic checks ran
+  // How to turn the model on, which differs per adapter (a label for the Action, config for the
+  // App). Shown when modelSkipped is "deterministic-only".
+  enableModelHint?: string;
 }
 
 // [HARNESS:GUARD] Model text is untrusted in markdown too: it can quote the PR it reviewed.
 // WHY: an "@team" in a finding would make the bot ping people, and raw HTML could hide text or
 //      fake a second summary. A zero-width space breaks mentions; "<" is shown, not parsed.
-// INTERVIEW: "Is the agent's output safe to post?" → treat it like user input at every sink:
-//            escape for where it lands (markdown, table cells, logs), not just at the prompt.
 export function sanitize(text: string): string {
   return text.replaceAll("<", "&lt;").replace(/@(?=[\w-])/g, "@\u200b");
 }
@@ -43,8 +44,7 @@ export function formatComment(finding: Finding): string {
 
 // A checks-only pass must say what wasn't checked, or it reads as "the model found nothing".
 const SKIPPED_NOTE: Record<ModelSkipped, string> = {
-  "deterministic-only":
-    "Only the automated checks ran. LLM rules were **not checked**: add the `live-review` label to run them.",
+  "deterministic-only": "Only the automated checks ran. LLM rules were **not checked**.",
   "no-llm-rules":
     "Only the automated checks ran: no changed file has a rule for the model to check.",
 };
@@ -54,7 +54,10 @@ export function formatSummary(input: PublishInput): string {
   const { blocking, advisory } = verdict.counts;
   const lines = [MARKER, `## Diffwise: ${HEADLINE[verdict.verdict]}`, ""];
   lines.push(`**${blocking} blocking**, ${advisory} advisory`);
-  if (modelSkipped) lines.push("", "> [!NOTE]", `> ${SKIPPED_NOTE[modelSkipped]}`);
+  if (modelSkipped) {
+    const hint = modelSkipped === "deterministic-only" && input.enableModelHint;
+    lines.push("", "> [!NOTE]", `> ${SKIPPED_NOTE[modelSkipped]}${hint ? ` ${hint}` : ""}`);
+  }
 
   if (!run.complete) {
     lines.push(
@@ -117,8 +120,6 @@ const outdatedBody = (latestUrl: string) =>
 // WHY: a full review on every push buries the current one, and GitHub can't delete a submitted
 //      review, so we rewrite the old body. New first: if posting fails, the old review still
 //      stands instead of being marked outdated with nothing to replace it.
-// INTERVIEW: "What happens on a new push?" → one new review pinned to the new head SHA; the
-//            old one is edited to point at it; the check result is recomputed for the new SHA.
 export async function publishReview(
   client: GitHubClient,
   pr: PrRef,

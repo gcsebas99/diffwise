@@ -53,11 +53,9 @@ export function needsModel(rules: RuleSet, files: readonly FileDiff[]): boolean 
   );
 }
 
-// [HARNESS:ORCH] One engine, two adapters: the CLI and the Action both call this.
+// [HARNESS:ORCH] One engine, three adapters: the CLI, the Action and the App all call this.
 // WHY: prompt, tools, limits and verdict must be identical wherever a review runs, or a PR
 //      could pass in CI and fail locally. Adapters only gather inputs and deliver results.
-// INTERVIEW: "How is the agent structured?" → a core that knows nothing about GitHub or the
-//            terminal, plus thin adapters for each place it runs (CLI, Action, App).
 export async function reviewChanges(options: ReviewChangesOptions): Promise<ReviewOutcome> {
   const { source, rules, files, config } = options;
   const checked = await runChecks(rules, files, source);

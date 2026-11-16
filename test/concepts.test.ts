@@ -7,7 +7,7 @@ describe("concepts extractor", () => {
       "const x = 1;",
       "// [HARNESS:LOOP] Exit condition #3 — stuck detection.",
       "// WHY: a confused model can repeat the same call forever.",
-      "// INTERVIEW: How do you stop runaway agents?",
+      "//      Repeating it after a nudge ends the review.",
       "if (stuck) return;",
       "  // [GH:API] Create a review.",
       "  // WHY: one request posts all comments.",
@@ -18,7 +18,7 @@ describe("concepts extractor", () => {
         title: "Exit condition #3 — stuck detection.",
         body: [
           "WHY: a confused model can repeat the same call forever.",
-          "INTERVIEW: How do you stop runaway agents?",
+          "     Repeating it after a nudge ends the review.",
         ],
         file: "src/a.ts",
         line: 2,

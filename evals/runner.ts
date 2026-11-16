@@ -49,8 +49,6 @@ export type TrialRecord =
 // WHY: anything thrown here is the harness's fault (stale cassette, broken patch), not the
 //      agent's, so it becomes status "error", reported apart from failed cases. An agent
 //      problem never throws: it ends as an outcome (model_error, max_steps) and is graded.
-// INTERVIEW: "Your eval failed: agent or harness?" → separate the two by construction, or a
-//            stale fixture reads as a quality regression and someone "fixes" the prompt.
 export async function runTrial(c: EvalCase, trial: number, opts: RunOptions): Promise<TrialRecord> {
   const started = performance.now();
   const base = { caseId: c.id, trial };

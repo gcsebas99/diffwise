@@ -73,8 +73,6 @@ export function createServer(options: ServerOptions): Hono {
       // WHY: GitHub waits 10 seconds for a reply, then marks the delivery failed; a review takes
       //      5-60 seconds. The tradeoff: once we've said 202, GitHub won't retry, so a crash
       //      mid-review loses it (redeliver by hand; a durable queue fixes that).
-      // INTERVIEW: "Why 202 before the work?" → webhook timeouts; then ask what happens if the
-      //            process dies after the 202 (lost job, stuck check) and how you'd recover.
       const job = toReviewJob(deliveryId, parsed.data);
       options.enqueue(job);
       log("webhook accepted", {

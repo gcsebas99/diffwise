@@ -35,6 +35,7 @@ export interface ActionDeps {
 }
 
 const MODES = ["live", "deterministic-only"] as const;
+const LIVE_HINT = "Add the `live-review` label to run them.";
 
 // [GH:ACTIONS] The job's result is the verdict: setFailed on fail is what branch protection reads.
 // WHY: the review is always a COMMENT; a required check that goes red is what blocks the merge,
@@ -91,7 +92,7 @@ async function review(io: ActionIO, deps: ActionDeps): Promise<void> {
     const annotate = f.severity === "blocking" ? io.error : io.warning;
     annotate.call(io, f.message, { title: f.ruleId, file: f.path, startLine: f.line });
   }
-  await io.writeSummary(formatSummary({ ...outcome, model }));
+  await io.writeSummary(formatSummary({ ...outcome, model, enableModelHint: LIVE_HINT }));
   io.setOutput("verdict", verdict.verdict);
 
   // A checks-only run with nothing to say posts no review: one per push would be noise.
@@ -101,7 +102,12 @@ async function review(io: ActionIO, deps: ActionDeps): Promise<void> {
   if (!token) throw new Error("input 'github-token' is empty");
   const pr = { owner: ctx.owner, repo: ctx.repo, number: ctx.number };
   const github = deps.createGitHub(token);
-  const published = await publishReview(github, pr, { ...outcome, model, commitId: ctx.headSha });
+  const published = await publishReview(github, pr, {
+    ...outcome,
+    model,
+    enableModelHint: LIVE_HINT,
+    commitId: ctx.headSha,
+  });
   for (const warning of published.warnings) io.warning(warning);
   io.setOutput("review-url", published.url);
 

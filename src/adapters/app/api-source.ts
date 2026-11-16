@@ -25,8 +25,6 @@ const STATUS: Record<PullRequestFile["status"], FileStatus> = {
 //      App runs on our server, next to the private key and the API key: cloning puts untrusted
 //      code there, and git can run code from a repo (hooks, filters, config). Over the API we
 //      only ever receive text; nothing from the PR is executed.
-// INTERVIEW: "Why doesn't the App clone the PR?" → it's our machine, not a disposable runner;
-//            running PR code safely needs a sandbox (container, no secrets, no network).
 export class GitHubApiSource implements RepoSource {
   private readonly cache = new Map<string, Promise<string | undefined>>();
   private files: Promise<FileDiff[]> | undefined;
@@ -117,8 +115,6 @@ function toFileDiff(file: PullRequestFile): FileDiff {
 // WHY: git grep's engine can't backtrack, but JavaScript's can: a pattern like (a+)+$ on a long
 //      line takes exponential time and would freeze the whole server, every queued review with
 //      it. The pattern comes from the model, which may be following an injected instruction.
-// INTERVIEW: "How do you run a user-supplied regex safely?" → a linear-time engine (RE2), or a
-//            time limit you can enforce (VM/worker timeout), plus caps on input size.
 function grep(
   pattern: string,
   files: { path: string; text: string }[],

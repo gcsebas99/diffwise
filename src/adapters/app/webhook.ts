@@ -6,8 +6,6 @@ import { z } from "zod";
 //      The HMAC covers the exact bytes sent: JSON.parse + stringify changes spacing and escapes,
 //      so verify before parsing. `===` stops at the first differing char, and timing that
 //      lets an attacker guess a valid signature byte by byte; timingSafeEqual always reads all.
-// INTERVIEW: "How do you know a webhook is from GitHub?" → shared secret, HMAC over the raw
-//            body, constant-time compare; reject before parsing anything.
 export function verifySignature(
   secret: string,
   rawBody: Uint8Array,
@@ -82,8 +80,6 @@ export interface DeliveryLogOptions {
 //      each one is another paid review and another comment on the PR.
 //      In memory: a restart forgets, so a redelivery after a restart reviews again. Redis (or
 //      any shared store with TTL) fixes that, and is needed once there are two instances.
-// INTERVIEW: "GitHub redelivers a webhook: what stops a double review?" → dedupe on the
-//            delivery GUID, in a store that outlives the process when it matters.
 export class DeliveryLog {
   private readonly seen = new Map<string, number>(); // id → expiry; Map keeps insertion order
   private readonly ttlMs: number;

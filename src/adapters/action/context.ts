@@ -39,8 +39,6 @@ export interface ActionContext {
 // WHY: on pull_request, GITHUB_SHA is a temporary merge commit GitHub builds; review comments
 //      must target pull_request.head.sha, the commit the author pushed, and the diff starts
 //      at pull_request.base.sha.
-// INTERVIEW: "Where does an Action get the PR?" → GITHUB_EVENT_PATH holds the webhook payload
-//            as JSON; validate it like any external input before using a field.
 export async function readActionContext(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<ActionContext> {

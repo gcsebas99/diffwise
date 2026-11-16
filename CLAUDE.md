@@ -23,7 +23,7 @@ Follow the mode of the current sub-task exactly. If a sub-task has no mode, ask.
   - **L2 — pointer:** the API/doc/pattern to use, no code.
   - **L3 — snippet:** ≤10 lines covering only the hard part.
 - When he says "review": correctness bugs first, then edge cases, then style.
-  Label each item **must-fix** or **nice-to-have**. End with one "interview check" question.
+  Label each item **must-fix** or **nice-to-have**. End with one "check your understanding" question.
 - If he explicitly says "just write it," comply, and mark that sub-task `🟢→🟡` in `docs/PROGRESS.md`.
 
 ### 🟡 PASTE & REVIEW — you write, Sebas pastes and reviews
@@ -64,11 +64,10 @@ Mark every place where a concept is *actually implemented*:
 ```ts
 // [HARNESS:LOOP] Exit condition #3 — stuck detection.
 // WHY: a confused model can repeat the same call forever and burn tokens.
-// INTERVIEW: "How do you stop runaway agents?" → step cap, token budget,
-//            repeated-call detection, explicit terminal tool.
 ```
 
-- First line `// [TAG] <what this is>`, then `// WHY:` (required), then optional `// INTERVIEW:`. Max ~6 lines.
+- First line `// [TAG] <what this is>`, then `// WHY:` (required). Max ~5 lines.
+- Questions and answers about a concept go in `docs/learning-takeaways.md`, not in code comments.
 - Harness tags: `LOOP`, `TOOLS`, `CONTEXT`, `GUARD`, `EVAL`, `ORCH`, `OBS`.
 - GitHub tags: `GH:AUTH`, `GH:WEBHOOK`, `GH:API`, `GH:ACTIONS`.
 - Only on concept-bearing code. Ordinary comments explain *why*, never restate the code.

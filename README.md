@@ -5,8 +5,12 @@ An AI agent that reviews pull requests against rules defined in the target repo
 **verdict is computed by code**: any `blocking` finding fails the check, so branch protection
 can block the merge.
 
-It runs as a **GitHub Action** today; a **GitHub App** (webhook service) comes next. Both use
-the same core engine as the local CLI.
+It ships two ways from one core engine: a **GitHub Action** that runs in the target repo's CI,
+and a **GitHub App** (a webhook service on Render) that repos install with one click. The same
+engine also runs as a local CLI.
+
+**Learning takeaways:** [`docs/learning-takeaways.md`](docs/learning-takeaways.md) collects what
+building this taught, as questions and answers by theme, each pointing at the code.
 
 **Live demo:** [gcsebas99/diffwise-demo](https://github.com/gcsebas99/diffwise-demo/pulls), six
 seeded PRs, three blocked by Diffwise, one with a prompt injection it ignores.
@@ -19,30 +23,32 @@ seeded PRs, three blocked by Diffwise, one with a prompt injection it ignores.
 ```mermaid
 flowchart LR
   subgraph Adapters
+    CLI[Local CLI<br/>local git]
     ACT[GitHub Action<br/>event payload + checkout]
-    CLI[Local CLI]
-    APP[GitHub App<br/><i>Phase 4</i>]
+    APP[GitHub App on Render<br/>signed webhook → queue]
   end
-  ACT --> ENGINE
   CLI --> ENGINE
-  APP -.-> ENGINE
+  ACT --> ENGINE
+  APP --> ENGINE
   subgraph ENGINE[Core review engine]
     RULES[Rules loader<br/>.review-rules.yaml]
     DIFF[Diff model]
+    CHECKS[Deterministic checks<br/>secrets, env vars]
     CTX[Prompt assembly<br/>cached prefix + untrusted PR text]
     LOOP{{Agent loop<br/>7 explicit exits}}
     TOOLS[Read-only tools<br/>+ report_finding / submit_review]
     VERDICT[Verdict by code]
   end
-  LOOP --> MODEL[ModelClient<br/>Anthropic / Scripted]
-  LOOP --> TOOLS --> SRC[(Local git<br/>pinned SHAs)]
+  LOOP --> MODEL[ModelClient<br/>Anthropic / Scripted / Replay]
+  LOOP --> TOOLS --> SRC[(RepoSource<br/>local git or GitHub API,<br/>pinned SHAs)]
   ENGINE --> PUB[Publisher<br/>one COMMENT review]
   PUB --> GH[(GitHub)]
-  ACT --> CHECK[Job result<br/>= required check]
+  ACT --> JOB[Job result<br/>check: Diffwise review]
+  APP --> CRUN[Check run<br/>check: Diffwise]
 ```
 
 1. **Rules** come from the target repo. Each has a severity (`blocking` / `advisory`) and either
-   `check: llm` (the model judges it) or `check: deterministic:<name>` (code checks it, Phase 3).
+   `check: llm` (the model judges it) or `check: deterministic:<name>` (code checks it).
 2. **The agent loop** gives the model a map of the PR (files and the rules that apply), not the
    whole diff. It pulls hunks with tools, reads files or searches when a rule needs context, and
    calls `report_finding` for each violation. Code validates every finding: the rule must exist
@@ -54,7 +60,50 @@ flowchart LR
 5. **The Action** posts one review pinned to the PR's head SHA, marks the previous Diffwise
    review outdated, writes annotations and a job summary, and fails the job on `fail`.
 
-## Use it in a repo
+## One engine, three ways to run it
+
+The core (`src/core/`) knows nothing about GitHub or the terminal. Each adapter gathers the
+inputs (rules, a `RepoSource`, PR title and body) and delivers the result.
+
+| | GitHub Action | GitHub App |
+|---|---|---|
+| Who runs it | GitHub's runner, inside the repo's CI | our server on Render |
+| Setup per repo | a workflow file, a secret, a variable, a label | install the App, choose repos, add `.review-rules.yaml` |
+| Anthropic key | each repo's own secret | one key on the server |
+| Identity on PRs | `github-actions[bot]` | `diffwise-gcsebas99[bot]` |
+| Permissions | the workflow's `GITHUB_TOKEN`: `contents: read`, `pull-requests: write` | fixed at registration; each review gets a token down-scoped to one repo |
+| Reads the PR via | `git` on a checkout of the PR | the REST API at a pinned SHA; no clone |
+| Rules read from | the PR's checkout | the **base** commit, so a PR can't edit its own rules |
+| When the model runs | only with the `live-review` label | every PR with a model-checked rule, under a daily cap |
+| Verdict shown as | the job's result | a check run, with annotations |
+| Required check name | **`Diffwise review`** (source: GitHub Actions) | **`Diffwise`** (source: the App) |
+| Upgrades | each repo bumps the version tag | deploy once, every repo gets it |
+| Operations | none | uptime, cold starts, queue, idempotency, logs |
+
+A team using it in their own repos would pick the Action: nothing to host. A product installed
+across many repos and organizations is an App: one-click install, central keys, its own identity.
+
+### Requiring the check: Action vs App
+
+Branch protection (a ruleset with "Require status checks to pass") matches a required check by
+**name and source**. The two adapters report different checks, so a repo must require the one it
+actually runs:
+
+- **Action:** the check is the workflow job, **`Diffwise review`**, reported by **GitHub Actions**.
+  It needs the workflow enabled (and the secret and variable for live mode). It goes red when the
+  job fails, which the action does on a `fail` verdict.
+- **App:** the check is a check run, **`Diffwise`**, reported by the **App**. It needs the App
+  installed on the repo and the service running. Require it with the App as its source, so no
+  other integration can satisfy it with a fake `Diffwise` status. It's `success`, `failure`,
+  `neutral` (the review didn't finish, or the daily cap was reached) or `skipped` (no rules file).
+
+A required check that nothing reports stays **"Expected — waiting for status to be reported"** and
+blocks the merge forever. The demo repo shows this right now: its ruleset still requires the
+Action's `Diffwise review` while the Action is disabled and the App reviews PRs, so PRs there wait
+on a check that never arrives. Require only the check of the path you use; requiring both means
+running both, and paying for two reviews.
+
+## Use it in a repo (GitHub Action)
 
 `.github/workflows/review.yml`:
 
@@ -135,12 +184,41 @@ open `/healthz` once to wake it. The real fixes: a paid instance, or a small alw
 that queues jobs for a worker. A keep-alive pinger isn't one: it spends the free tier's monthly
 hours.
 
+## Evals
+
+18 cases ([`evals/cases/`](evals/cases/)), each a patch on one fixture app plus the review a careful
+human would write: positive and negative twins per rule, boundary cases, two prompt injections, a
+"just a refactor" PR that changes behavior, and a 24-file PR. Four pure graders (verdict,
+findings matched one-to-one by rule + path + line range, forbidden findings, budget).
+
+| Run (`claude-haiku-5-5`, k = 3) | Result |
+|---|---|
+| Full suite | 54/54 trials passed; pass@3 and pass^3 100%; precision and recall 100% on every rule |
+| Cost | $0.0206 for the run; mean $0.0006, p95 $0.0009 per model review |
+| Injections | resisted 3/3 trials each |
+| Replay of the same run | identical report, $0 |
+
+100% means the dataset isn't hard enough yet to tell a better prompt from a worse one; the plan is
+to turn every real bad review into a new case. **CI replays the recorded runs** on every push:
+free, deterministic, and it fails below a 90% pass rate or on any failed adversarial trial.
+
+**Ablation** ([`docs/ablations.md`](docs/ablations.md)): moving the two code checks (secrets,
+undocumented env vars) into the model kept recall at 100% but added 3 false positives and 52% more
+cost (18 more model calls). Rules a pattern can express belong in code.
+
 ## Safety and cost
 
 - **`pull_request`, never `pull_request_target`.** Fork PRs get no secrets and a read-only token;
   the action refuses any other event.
-- **Nothing from the PR is executed.** Tools only read git objects at pinned SHAs; git runs
-  with argument arrays, never a shell.
+- **Nothing from the PR is executed.** The Action's tools only read git objects at pinned SHAs,
+  with argument arrays, never a shell. The App doesn't clone at all: it reads through the API.
+- **Least privilege.** The workflow asks for `contents: read` and `pull-requests: write`. The App
+  has four permissions, and each review's installation token is down-scoped to one repo and the
+  three it uses. The App's private key never leaves the server; it only mints 1-hour tokens.
+- **The App trusts nothing it hasn't verified.** Webhooks are checked with HMAC-SHA256 over the
+  raw body and a constant-time compare before anything is parsed; redeliveries are deduped on
+  `X-GitHub-Delivery`; rules come from the base commit; the model's search regex runs with a
+  1-second timeout; log fields with secret-looking names are redacted.
 - **PR text is untrusted.** It's wrapped in `<untrusted_*>` tags with closing tags escaped, and
   the model is told it's data. That lowers the odds of injection; the real limits are read-only
   tools and code-validated findings.
@@ -151,14 +229,21 @@ hours.
   and length, never the value. (In live mode the model still reads the diff, so a committed
   secret does reach the model provider: redaction protects Diffwise's outputs, not its input.)
 - **Model output is escaped where it lands:** mentions are broken, HTML is shown as text.
-- **Cost is opt-in twice:** the `live-review` label (triage access or higher) and a skip when no
-  changed file has an LLM rule. Each review prints its model, prompt version, tokens and
-  estimated cost. A review of the demo PRs costs $0.0004–$0.0014 on `claude-haiku-5-5`.
+- **Cost controls.** Action: the `live-review` label (triage access or higher). Both: no model
+  call when no changed file has an LLM rule, and per-review limits (steps, tokens, deadline). App:
+  an installation allowlist (the server won't start without one), a daily review cap, and only
+  installable on this account. Behind all of it, a monthly spend limit in the Anthropic Console.
+  Each review prints its model, prompt version, tokens and estimated cost; a review of the demo
+  PRs costs $0.0004–$0.0014 on `claude-haiku-5-5`.
+- **Known gaps (App):** the daily cap and delivery IDs live in memory, so a restart (including a
+  free-tier wake-up) resets them, and the cap is shared by every installation.
 
 ## Where each concept lives
 
 Every concept is marked in the code with a `// [TAG]` comment explaining why it exists;
-[`CONCEPTS.md`](CONCEPTS.md) lists them all with exact lines (`pnpm concepts` regenerates it).
+[`CONCEPTS.md`](CONCEPTS.md) lists them all with exact lines (`pnpm concepts` regenerates it, and
+CI fails if it's stale). The questions and answers behind them are in
+[`docs/learning-takeaways.md`](docs/learning-takeaways.md).
 
 | Concept | Files |
 |---|---|
@@ -170,6 +255,25 @@ Every concept is marked in the code with a `// [TAG]` comment explaining why it 
 | Orchestration: one engine, swappable model and GitHub | [`src/core/engine.ts`](src/core/engine.ts), [`src/model/`](src/model/), [`src/adapters/github/`](src/adapters/github/) |
 | GitHub API: reviews, pinning, pagination | [`src/adapters/github/`](src/adapters/github/), [`src/core/publish.ts`](src/core/publish.ts) |
 | GitHub Actions: payload, label gate, job result | [`src/adapters/action/`](src/adapters/action/), [`action.yml`](action.yml) |
+| GitHub App auth: JWT, installation tokens, down-scoping | [`src/adapters/app/auth.ts`](src/adapters/app/auth.ts) |
+| Webhooks: HMAC, idempotency, 202 | [`src/adapters/app/webhook.ts`](src/adapters/app/webhook.ts), [`src/adapters/app/server.ts`](src/adapters/app/server.ts) |
+| App orchestration: API source, queue, check runs | [`src/adapters/app/`](src/adapters/app/) |
+| Evals: cases, record/replay, graders, reports, CI gate | [`evals/`](evals/), [`src/model/replay.ts`](src/model/replay.ts) |
+| Observability: JSON logs, redaction | [`src/adapters/app/log.ts`](src/adapters/app/log.ts) |
+
+## What I'd do next
+
+- **State that survives restarts:** delivery IDs, daily caps and reviewed heads in Redis (or
+  Postgres), so a restart or a free-tier wake-up doesn't reset them, and two instances agree.
+- **Budgets per installation**, not one global cap, plus per-installation rate limits.
+- **A durable queue** between the webhook receiver and review workers: jobs survive crashes, and
+  workers scale separately.
+- **A sweep for stuck check runs:** find our check runs still "in progress" after a crash and
+  complete them as neutral.
+- **The Re-run button:** subscribe to `check_run` events and handle `rerequested`.
+- **SARIF output**, so findings also show up in GitHub code scanning.
+- **Harder eval cases:** every real bad review becomes one; secrets a regex would miss.
+- **Keep the per-trial findings** in eval reports, so a false positive traces back to its case.
 
 ## Status
 
@@ -178,10 +282,12 @@ Every concept is marked in the code with a `// [TAG]` comment explaining why it 
 | 1 | Core engine + CLI | ✅ |
 | 2 | GitHub Action + demo PRs | ✅ |
 | 3 | Deterministic checks + evals (precision/recall per rule, replay in CI) | ✅ |
-| 4 | GitHub App on Render (webhooks, installation tokens, check runs) | next |
+| 4 | GitHub App on Render (webhooks, installation tokens, check runs) | ✅ |
 
 Progress and lessons per sub-task: [`docs/PROGRESS.md`](docs/PROGRESS.md). Real runs:
 [`docs/live-runs.md`](docs/live-runs.md). Ablations: [`docs/ablations.md`](docs/ablations.md).
+Learning takeaways: [`docs/learning-takeaways.md`](docs/learning-takeaways.md). My own notes:
+[`LEARNING.md`](LEARNING.md).
 
 ## Development
 

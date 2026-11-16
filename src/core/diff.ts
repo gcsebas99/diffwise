@@ -1,16 +1,12 @@
 // [HARNESS:CONTEXT] Structured diff model: files → hunks → lines with new-side line numbers.
 // WHY: the agent gets numbered, per-file hunks through tools instead of one raw patch, so it
 //      can cite exact lines and pull only the files it needs.
-// INTERVIEW: "Why not paste the diff?" → token cost, attention dilution, and the model can't
-//            reliably count lines in raw patch text; structured data can be validated.
 export type DiffLine =
   | { kind: "add"; content: string; newLine: number; commentable: true }
   | { kind: "context"; content: string; oldLine: number; newLine: number; commentable: true }
   // [HARNESS:GUARD] Only new-side lines (added or context, inside a hunk) are commentable.
   // WHY: findings are published as GitHub review comments with side=RIGHT; a line outside the
   //      diff gets a 422, and one bad comment fails the whole review request.
-  // INTERVIEW: "How do you stop comments GitHub will reject?" → validate line against the
-  //            diff model in report_finding, before anything reaches the API.
   | { kind: "del"; content: string; oldLine: number; commentable: false };
 
 export interface Hunk {

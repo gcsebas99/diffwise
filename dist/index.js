@@ -81428,8 +81428,6 @@ var listChangedFiles = defineTool({
   // [HARNESS:TOOLS] A tool description is a prompt: when to call it, what the output means.
   // WHY: the model knows nothing beyond name + description + schema. "Call this first" and
   //      "a file with no rules needs no findings" steer behavior more than any system prompt line.
-  // INTERVIEW: "How do you get an agent to use tools well?" → write descriptions like docs for a
-  //            new teammate, name the next tool to use, explain every symbol in the output.
   description: [
     "List every file changed in this pull request. Call this first.",
     "Each line shows: status (A added, M modified, D deleted, R renamed), path, line counts,",
@@ -81531,8 +81529,6 @@ var ToolRegistry = class {
   // [HARNESS:TOOLS] execute() never throws: every failure becomes ok=false with a next step.
   // WHY: the loop must keep running so the model can self-correct; a crash would lose the
   //      whole review over one bad call. Retries are bounded by the loop's step cap (1.8).
-  // INTERVIEW: "Where do you validate tool calls?" → at one choke point, before run(); the
-  //            model's arguments are untrusted input like any other.
   async execute(name, rawArgs, ctx) {
     const tool = this.tools.get(name);
     if (!tool) return fail(`unknown tool '${name}'. Available tools: ${this.names().join(", ")}`);
@@ -81584,8 +81580,6 @@ var reportFinding = defineTool({
   //   rule, rule applies to the path, file is in the diff, line is commentable, not a duplicate.
   // WHY: an invalid line makes GitHub reject the whole review (422); a wrong rule or path is a
   //      hallucination. Each check fails with the valid options so the model can fix it.
-  // INTERVIEW: "How do you keep agent output valid?" → validate structured actions against
-  //            ground truth (rules file, diff model) at the tool, not after the fact.
   async run(ctx, args) {
     const llmIds = ctx.rules.rules.filter((r) => r.check.kind === "llm").map((r) => r.id);
     const rule = ctx.rules.rules.find((r) => r.id === args.rule_id);
@@ -82000,7 +81994,7 @@ function formatComment(finding) {
   return lines.join("\n");
 }
 var SKIPPED_NOTE = {
-  "deterministic-only": "Only the automated checks ran. LLM rules were **not checked**: add the `live-review` label to run them.",
+  "deterministic-only": "Only the automated checks ran. LLM rules were **not checked**.",
   "no-llm-rules": "Only the automated checks ran: no changed file has a rule for the model to check."
 };
 function formatSummary(input2) {
@@ -82008,7 +82002,10 @@ function formatSummary(input2) {
   const { blocking, advisory } = verdict.counts;
   const lines = [MARKER, `## Diffwise: ${HEADLINE[verdict.verdict]}`, ""];
   lines.push(`**${blocking} blocking**, ${advisory} advisory`);
-  if (modelSkipped) lines.push("", "> [!NOTE]", `> ${SKIPPED_NOTE[modelSkipped]}`);
+  if (modelSkipped) {
+    const hint = modelSkipped === "deterministic-only" && input2.enableModelHint;
+    lines.push("", "> [!NOTE]", `> ${SKIPPED_NOTE[modelSkipped]}${hint ? ` ${hint}` : ""}`);
+  }
   if (!run2.complete) {
     lines.push(
       "",
@@ -82076,6 +82073,7 @@ async function publishReview(client, pr, input2) {
 
 // src/adapters/action/main.ts
 var MODES = ["live", "deterministic-only"];
+var LIVE_HINT = "Add the `live-review` label to run them.";
 async function run(io2, deps) {
   try {
     await review(io2, deps);
@@ -82116,14 +82114,19 @@ async function review(io2, deps) {
     const annotate = f.severity === "blocking" ? io2.error : io2.warning;
     annotate.call(io2, f.message, { title: f.ruleId, file: f.path, startLine: f.line });
   }
-  await io2.writeSummary(formatSummary({ ...outcome, model }));
+  await io2.writeSummary(formatSummary({ ...outcome, model, enableModelHint: LIVE_HINT }));
   io2.setOutput("verdict", verdict.verdict);
   if (outcome.modelSkipped && result.findings.length === 0) return;
   const token = io2.getInput("github-token");
   if (!token) throw new Error("input 'github-token' is empty");
   const pr = { owner: ctx.owner, repo: ctx.repo, number: ctx.number };
   const github = deps.createGitHub(token);
-  const published = await publishReview(github, pr, { ...outcome, model, commitId: ctx.headSha });
+  const published = await publishReview(github, pr, {
+    ...outcome,
+    model,
+    enableModelHint: LIVE_HINT,
+    commitId: ctx.headSha
+  });
   for (const warning2 of published.warnings) io2.warning(warning2);
   io2.setOutput("review-url", published.url);
   if (verdict.verdict === "neutral") {

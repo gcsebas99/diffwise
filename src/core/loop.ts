@@ -62,8 +62,6 @@ const REPEAT_LIMIT = 3;
 // [HARNESS:LOOP] Stuck detection: the same set of tool calls REPEAT_LIMIT turns in a row.
 // WHY: a confused model can repeat a call forever (often one that keeps failing) and burn the
 //      budget. The first time gets a nudge; repeating after the nudge ends the review.
-// INTERVIEW: "How do you stop runaway agents?" → step cap, token budget, deadline,
-//            repeated-call detection, and an explicit terminal tool.
 export class RepeatDetector {
   private last = "";
   private count = 0;
@@ -105,8 +103,6 @@ const ZERO_USAGE: Usage = {
 // [HARNESS:LOOP] The agent loop: think (model call) → act (run tools) → observe (results back).
 // WHY: the model only decides; the loop executes, enforces every limit, and owns the exits.
 //      Findings live in ctx.state, so whatever was reported survives any exit.
-// INTERVIEW: "Walk me through your agent loop." → messages in, tool_use blocks out, execute,
-//            one user message of tool_results paired by id; repeat until terminal tool or limit.
 export async function runReview(options: RunReviewOptions): Promise<ReviewRun> {
   const { model, registry, ctx, system, limits } = options;
   const emit = options.onEvent ?? (() => {});

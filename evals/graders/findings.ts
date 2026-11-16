@@ -16,8 +16,6 @@ const inRange = (e: Expected, line: number) => line >= e.lines[0] && line <= e.l
 //      noise, so it counts as a false positive. Ranges ending first pick the lowest free line
 //      first; that greedy order is optimal, so a wide range never steals the only line a
 //      narrow one could take.
-// INTERVIEW: "How do you score a reviewer's findings?" → match them to a labeled set; count
-//            TP/FP/FN per rule; report precision and recall separately, never just accuracy.
 function match(expected: readonly Expected[], reported: readonly Finding[]) {
   const free = [...reported].sort((a, b) => a.line - b.line);
   const missed: Expected[] = [];

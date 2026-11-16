@@ -7,8 +7,6 @@ import type { RuleSet } from "../rules.js";
 // [HARNESS:TOOLS] Tool failures are values: ok=false becomes is_error on the tool_result.
 // WHY: a thrown error ends the review; a returned error lets the model read why and retry
 //      with corrected arguments on its next turn.
-// INTERVIEW: "What happens when the model calls a tool wrong?" → validate, return an actionable
-//            error as the tool result, let it self-correct; the step cap bounds retries.
 export interface ToolResult {
   ok: boolean;
   content: string;

@@ -137,8 +137,6 @@ export function parseRules(text: string, source = "<inline>"): RuleSet {
   // [HARNESS:GUARD] Validate the rules file at the boundary and fail loudly, listing every problem.
   // WHY: it's external input from the target repo, and a bad rule can't be fixed mid-review.
   //      Stop before any model call, with errors the author can act on.
-  // INTERVIEW: "Config errors vs tool errors?" → config: fail fast at startup (a human fixes it);
-  //            tool args: return the error to the model (it can correct itself in the loop).
   const result = RulesFileSchema.safeParse(raw, { reportInput: true });
   if (!result.success) {
     throw new RulesError(

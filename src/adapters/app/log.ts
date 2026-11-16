@@ -9,8 +9,6 @@ const SECRET_NAME = /token|secret|password|authorization|api_?key|private_?key|c
 // WHY: Render (and any log tool) can filter JSON by field: deliveryId matches GitHub's
 //      "Recent deliveries", pr finds every job for a PR, costUsd sums spend. The redaction is
 //      a backstop: a later change that logs the wrong object prints "[redacted]", not a key.
-// INTERVIEW: "How do you debug an agent in production?" → structured logs keyed by request
-//            ID, outcome and cost per run, and secrets redacted by name before anything prints.
 export function redact(fields: LogFields): LogFields {
   return Object.fromEntries(
     Object.entries(fields).map(([k, v]) => [k, SECRET_NAME.test(k) ? "[redacted]" : v]),

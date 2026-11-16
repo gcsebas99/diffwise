@@ -38,8 +38,6 @@ export function parseInstallations(value: string | undefined): Set<number> {
 //      paid model call. One waiting job per PR: a newer push replaces the older job, since only
 //      the latest head is worth reviewing. A PR never runs twice at once. The cap bounds spend
 //      however many PRs arrive, and the allowlist decides who gets reviewed at all.
-// INTERVIEW: "What would you change for 500 repos?" → a durable queue (jobs survive restarts),
-//            per-installation budgets and rate limits, workers that scale apart from the webhook.
 export class JobQueue {
   private readonly waiting: ReviewJob[] = [];
   private readonly running = new Set<string>(); // PR keys

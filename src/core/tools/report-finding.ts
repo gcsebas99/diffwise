@@ -32,8 +32,6 @@ export const reportFinding = defineTool({
   //   rule, rule applies to the path, file is in the diff, line is commentable, not a duplicate.
   // WHY: an invalid line makes GitHub reject the whole review (422); a wrong rule or path is a
   //      hallucination. Each check fails with the valid options so the model can fix it.
-  // INTERVIEW: "How do you keep agent output valid?" → validate structured actions against
-  //            ground truth (rules file, diff model) at the tool, not after the fact.
   async run(ctx, args) {
     const llmIds = ctx.rules.rules.filter((r) => r.check.kind === "llm").map((r) => r.id);
     const rule = ctx.rules.rules.find((r) => r.id === args.rule_id);

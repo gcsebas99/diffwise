@@ -95,7 +95,11 @@ export async function runReviewJob(job: ReviewJob, deps: ReviewJobDeps): Promise
       pr: { title: current.title, body: current.body },
       ...(model ? { model: model.client(), modelName: model.name } : {}),
     });
-    const input = { ...outcome, model: model?.name ?? "none" };
+    const input = {
+      ...outcome,
+      model: model?.name ?? "none",
+      enableModelHint: "This App has no model configured (ANTHROPIC_API_KEY, DIFFWISE_MODEL).",
+    };
 
     // The check first: it's the verdict branch protection reads. If posting the review fails
     // after this, the verdict still stands; only the link to the review is missing.

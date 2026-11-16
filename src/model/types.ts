@@ -27,8 +27,6 @@ export interface ModelResponse {
 // [HARNESS:ORCH] The loop talks to this interface, never to the SDK directly.
 // WHY: tests swap in a ScriptedModel (no network, no cost, same result every run), and Phase 3
 //      adds Recording/Replay models for evals. The loop can't tell which one it has.
-// INTERVIEW: "How do you test an agent without paying for API calls?" → put the model behind
-//            an interface; script responses for unit tests, record and replay real ones for evals.
 export interface ModelClient {
   create(request: ModelRequest): Promise<ModelResponse>;
 }

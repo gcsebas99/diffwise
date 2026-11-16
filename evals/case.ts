@@ -19,8 +19,6 @@ const LineRange = z
 // [HARNESS:EVAL] An eval case is a PR plus the review a careful human would write.
 // WHY: findings match on rule + path + a line *range*: two runs anchored the same migration
 //      finding on line 3 and line 9, both right. Exact lines would grade correct reviews as misses.
-// INTERVIEW: "How do you grade a non-deterministic reviewer?" → grade what matters (rule, file,
-//            region, verdict), not incidental choices (exact line, wording).
 const ExpectedFinding = z.strictObject({
   rule: KebabId,
   path: z.string().min(1),

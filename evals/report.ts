@@ -75,8 +75,6 @@ export function summarize(
   // [HARNESS:EVAL] pass@k vs pass^k: "can it ever do this?" vs "does it always do this?"
   // WHY: a reviewer that catches a missing test 2 runs out of 3 has pass@3 = 1 and pass^3 = 0.
   //      Users see one run per PR, so pass^k is the reliability they get; pass@k is the ceiling.
-  // INTERVIEW: "How do you evaluate a non-deterministic agent?" → k trials per case; report
-  //            both, and gate on pass^k for anything that must never regress (injections).
   const cases: CaseSummary[] = [...byCase].map(([id, trials]) => {
     const graded = trials.filter((t) => t.status === "graded");
     const passes = graded.filter((t) => t.grade.passed).length;

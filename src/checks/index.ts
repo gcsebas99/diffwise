@@ -16,8 +16,6 @@ const CHECKS: Record<DeterministicCheck, Check> = {
 // [HARNESS:GUARD] Deterministic first: pattern rules run as code, before the model.
 // WHY: a regex never misses what it covers, costs nothing, and can't be talked out of a
 //      finding by a prompt injection; the model only gets the rules that need judgment.
-// INTERVIEW: "What do you give the LLM and what not?" → anything a pattern can decide runs as
-//            code; the model gets judgment calls, and can't remove what code already found.
 export async function runChecks(
   rules: RuleSet,
   files: readonly FileDiff[],

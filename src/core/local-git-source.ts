@@ -86,8 +86,6 @@ export class LocalGitSource implements RepoSource {
 // [HARNESS:GUARD] git runs via execFile with an argument array, never a shell string.
 // WHY: patterns, paths and refs come from the model or the PR; in a shell string, a value like
 //      "x; rm -rf ~" or "$(curl …)" would execute. As an array element it's just text.
-// INTERVIEW: "How do you run tools on untrusted input?" → no shell, `--`/-e/--end-of-options
-//            separators, timeouts and output caps, read-only commands only.
 async function git(repo: string, args: string[]): Promise<string> {
   const fullArgs = ["-C", repo, "-c", "core.quotePath=false", ...args];
   const { stdout } = await execFileAsync("git", fullArgs, {

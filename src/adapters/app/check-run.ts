@@ -22,8 +22,6 @@ export interface CompletedCheck {
 // [GH:API] The verdict as a check run: the conclusion is what branch protection reads.
 // WHY: a review comment can't block a merge; a required check can, and it's recomputed per
 //      commit. Annotations put each finding on its line in "Files changed", 50 per request.
-// INTERVIEW: "Review or check run?" → both: the review is the conversation, the check run is
-//            the gate (pass/fail per commit), and only a GitHub App can create one.
 export function completedCheck(input: PublishInput): CompletedCheck {
   const { blocking, advisory } = input.verdict.counts;
   const title =

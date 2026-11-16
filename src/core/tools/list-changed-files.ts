@@ -10,8 +10,6 @@ export const listChangedFiles = defineTool({
   // [HARNESS:TOOLS] A tool description is a prompt: when to call it, what the output means.
   // WHY: the model knows nothing beyond name + description + schema. "Call this first" and
   //      "a file with no rules needs no findings" steer behavior more than any system prompt line.
-  // INTERVIEW: "How do you get an agent to use tools well?" → write descriptions like docs for a
-  //            new teammate, name the next tool to use, explain every symbol in the output.
   description: [
     "List every file changed in this pull request. Call this first.",
     "Each line shows: status (A added, M modified, D deleted, R renamed), path, line counts,",
