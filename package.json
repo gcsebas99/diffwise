@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI agent that reviews pull requests against repo-defined rules",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.12"
