@@ -24,6 +24,7 @@ export type JobResult =
   | {
       status: "reviewed";
       headSha: string;
+      outcome: string; // how the agent loop ended: completed, max_steps, model_error, ...
       verdict: "pass" | "fail" | "neutral";
       findings: number;
       costUsd: number | undefined;
@@ -115,6 +116,7 @@ export async function runReviewJob(job: ReviewJob, deps: ReviewJobDeps): Promise
     return {
       status: "reviewed",
       headSha: current.headSha,
+      outcome: outcome.run.outcome,
       verdict: outcome.verdict.verdict,
       findings: outcome.run.findings.length,
       costUsd: outcome.cost,

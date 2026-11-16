@@ -17,6 +17,7 @@
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit",
     "build:action": "tsx scripts/build-action.ts",
+    "build:app": "tsx scripts/build-app.ts",
     "concepts": "tsx scripts/concepts.ts",
     "app:token": "tsx --env-file-if-exists=.env scripts/app-token.ts",
     "app:dev": "tsx --env-file-if-exists=.env src/adapters/app/main.ts"

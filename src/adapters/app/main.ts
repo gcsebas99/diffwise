@@ -1,16 +1,18 @@
-// The App's entry point: `pnpm app:dev` locally (forward a smee channel to it), Render in 4.6.
+// The App's entry point: `pnpm app:dev` locally (forward a smee channel to it); in the Docker
+// image on Render it runs as the bundled app.mjs.
 import { serve } from "@hono/node-server";
 import { loadConfig } from "../../config.js";
 import { AnthropicModel } from "../../model/anthropic.js";
 import { OctokitGitHubClient } from "../github/octokit.js";
 import { InstallationTokens, loadAppCredentials } from "./auth.js";
 import { JobQueue, parseInstallations } from "./jobs.js";
+import { jsonLogger } from "./log.js";
 import { type ReviewJobDeps, reportSkipped, runReviewJob } from "./review-job.js";
-import { createServer, type Log } from "./server.js";
+import { createServer } from "./server.js";
 import { DeliveryLog } from "./webhook.js";
 
-const log: Log = (message, fields = {}) =>
-  console.log(JSON.stringify({ time: new Date().toISOString(), message, ...fields }));
+const log = jsonLogger();
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 // Everything is checked before the port opens: a misconfigured App fails at boot, not on a PR.
 const config = loadConfig();
@@ -42,6 +44,7 @@ const queue = new JobQueue({
     const result = await runReviewJob(job, deps);
     log(`job ${result.status}`, {
       deliveryId: job.deliveryId,
+      installationId: job.installationId,
       pr: `${job.owner}/${job.repo}#${job.number}`,
       ...result,
       ms: Date.now() - started,
@@ -50,18 +53,24 @@ const queue = new JobQueue({
   onSkipped: (job, reason) => {
     log("job skipped", { deliveryId: job.deliveryId, reason });
     reportSkipped(job, reason, deps).catch((err: unknown) =>
-      log("could not report the skip", {
-        deliveryId: job.deliveryId,
-        error: err instanceof Error ? err.message : String(err),
-      }),
+      log(
+        "could not report the skip",
+        { deliveryId: job.deliveryId, error: errorText(err) },
+        "error",
+      ),
     );
   },
   onError: (job, err) =>
-    log("job failed", {
-      deliveryId: job.deliveryId,
-      pr: `${job.owner}/${job.repo}#${job.number}`,
-      error: err instanceof Error ? err.message : String(err),
-    }),
+    log(
+      "job failed",
+      {
+        deliveryId: job.deliveryId,
+        installationId: job.installationId,
+        pr: `${job.owner}/${job.repo}#${job.number}`,
+        error: errorText(err),
+      },
+      "error",
+    ),
 });
 
 const app = createServer({
@@ -74,16 +83,24 @@ const app = createServer({
   log,
 });
 
-const server = serve({ fetch: app.fetch, port: config.PORT }, (info) =>
+// 0.0.0.0, not localhost: inside a container, localhost is unreachable from Render's proxy.
+const server = serve({ fetch: app.fetch, port: config.PORT, hostname: "0.0.0.0" }, (info) =>
   log("listening", { port: info.port, allowedInstallations: [...allowedInstallations] }),
 );
 
 // Render sends SIGTERM before replacing the instance: stop taking webhooks, let running
-// reviews finish (up to 30 s), then exit. Waiting jobs are lost: they already got a 202, so
+// reviews finish (up to 50 s, inside render.yaml's 60 s maxShutdownDelaySeconds), then exit. Waiting jobs are lost: they already got a 202, so
 // GitHub won't retry them; redeliver from the App settings.
+// A bug that escapes every handler: log it as JSON so Render shows why, then exit and let
+// Render restart a clean process rather than run on in an unknown state.
+process.on("unhandledRejection", (err) => {
+  log("unhandled rejection", { error: errorText(err) }, "error");
+  process.exit(1);
+});
+
 process.on("SIGTERM", () => {
   log("shutting down", queue.size);
   server.close();
-  const timeout = new Promise((resolve) => setTimeout(resolve, 30_000).unref());
+  const timeout = new Promise((resolve) => setTimeout(resolve, 50_000).unref());
   void Promise.race([queue.idle(), timeout]).then(() => process.exit(0));
 });

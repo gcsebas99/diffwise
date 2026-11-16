@@ -1,0 +1,32 @@
+# Render Blueprint for the Diffwise GitHub App: Render → New → Blueprint → this repo.
+# Secrets are `sync: false`: Render asks for them once, at creation, and they never live here.
+services:
+  - type: web
+    name: diffwise
+    runtime: docker
+    plan: free # omitted, Render picks a paid instance
+    region: oregon # can't be changed after creation
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    # Deploy main only after CI (tests, lint, replay evals) passes on that commit.
+    autoDeployTrigger: checksPass
+    # SIGTERM, then SIGKILL after this: main.ts drains running reviews for up to 50 s.
+    maxShutdownDelaySeconds: 60
+    envVars:
+      # IDs and settings, not secrets.
+      - key: GITHUB_APP_CLIENT_ID
+        value: Iv23liXUwt5G5RxAN0PZ
+      - key: ALLOWED_INSTALLATIONS
+        value: "181424445"
+      - key: DIFFWISE_MODEL
+        value: claude-haiku-5-5
+      - key: DAILY_REVIEW_CAP
+        value: "50"
+      # The App's private key is a Render secret file (Environment → Secret Files), mounted here.
+      - key: GITHUB_PRIVATE_KEY_PATH
+        value: /etc/secrets/github-app.pem
+      # Secrets: entered in the Render dashboard.
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import type { Log } from "./log.js";
 import {
   type DeliveryLog,
   PullRequestEventSchema,
@@ -9,7 +10,7 @@ import {
   verifySignature,
 } from "./webhook.js";
 
-export type Log = (message: string, fields?: Record<string, unknown>) => void;
+export type { Log } from "./log.js";
 
 export interface ServerOptions {
   webhookSecret: string;

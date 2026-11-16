@@ -112,6 +112,29 @@ rules:
 
 Outputs: `verdict` (`pass` / `fail` / `neutral`) and `review-url`.
 
+## Run it as a GitHub App
+
+The same engine also runs as a GitHub App on Render (`src/adapters/app/`): GitHub sends a
+webhook, the server verifies its signature, gets an installation token, reads the PR through the
+API (no clone, no PR code executed), and reports the verdict as a `Diffwise` check run plus the
+same review. Deployment is `render.yaml` (a Docker web service on the free plan):
+
+1. Render → New → Blueprint → this repo. Enter `GITHUB_WEBHOOK_SECRET` and `ANTHROPIC_API_KEY`
+   when asked; the IDs and settings are in `render.yaml`.
+2. Environment → Secret Files: add `github-app.pem` with the App's private key.
+3. In the App's settings, point the webhook URL at `https://<service>.onrender.com/webhooks/github`.
+
+The server refuses to start without `ALLOWED_INSTALLATIONS`, and reviews at most
+`DAILY_REVIEW_CAP` PRs a day.
+
+**Free-tier tradeoff: cold starts.** A free Render service sleeps after 15 minutes without
+traffic and takes about a minute to wake, but GitHub waits only 10 seconds for a webhook reply.
+So the first push after an idle period shows a failed delivery; the request wakes the service,
+and **Redeliver** (App settings → Advanced → Recent deliveries) then gets a 202. Before a demo,
+open `/healthz` once to wake it. The real fixes: a paid instance, or a small always-on receiver
+that queues jobs for a worker. A keep-alive pinger isn't one: it spends the free tier's monthly
+hours.
+
 ## Safety and cost
 
 - **`pull_request`, never `pull_request_target`.** Fork PRs get no secrets and a read-only token;
@@ -176,6 +199,8 @@ pnpm eval --suite full --k 3 --mode record   # live run that re-records the cass
 pnpm eval --suite full --k 3 --min-pass-rate 0.9 --must-pass adversarial
 # Ablation: same cases, a different rules file (results in docs/ablations.md):
 pnpm eval --suite full --k 3 --mode live --rules evals/fixtures/rules-llm-only.yaml
+pnpm app:dev            # the App server locally (forward a smee.io channel to /webhooks/github)
+pnpm app:token          # check the App's JWT and installation token against GitHub
 ```
 
 Unit tests never call the Anthropic or GitHub APIs: they use a scripted model, a fake GitHub

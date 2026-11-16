@@ -1,0 +1,15 @@
+# Nothing secret or local enters the build context. Render also copies secret files into the
+# context root, so *.pem is excluded here as well as never COPY'd.
+.git
+.github
+.env
+.env.*
+*.pem
+node_modules
+build
+dist
+evals
+test
+docs
+coverage
+*.log

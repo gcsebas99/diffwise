@@ -1,5 +1,7 @@
 node_modules/
 # dist/ is committed: the action runs dist/index.js straight from the repo.
+# build/ is not: the App bundle is built inside its Docker image.
+build/
 coverage/
 .env
 .env.*
