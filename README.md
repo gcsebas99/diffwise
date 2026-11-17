@@ -309,17 +309,9 @@ CI fails if it's stale). The questions and answers behind them are in
 - **Harder eval cases:** every real bad review becomes one; secrets a regex would miss.
 - **Keep the per-trial findings** in eval reports, so a false positive traces back to its case.
 
-## Status
+## More docs
 
-| Phase | | |
-|---|---|---|
-| 1 | Core engine + CLI | ✅ |
-| 2 | GitHub Action + demo PRs | ✅ |
-| 3 | Deterministic checks + evals (precision/recall per rule, replay in CI) | ✅ |
-| 4 | GitHub App on Render (webhooks, installation tokens, check runs) | ✅ |
-
-Progress and lessons per sub-task: [`docs/PROGRESS.md`](docs/PROGRESS.md). Real runs:
-[`docs/live-runs.md`](docs/live-runs.md). Ablations: [`docs/ablations.md`](docs/ablations.md).
+Real runs: [`docs/live-runs.md`](docs/live-runs.md). Ablations: [`docs/ablations.md`](docs/ablations.md).
 Learning takeaways: [`docs/learning-takeaways.md`](docs/learning-takeaways.md). My own notes:
 [`LEARNING.md`](LEARNING.md).
 
