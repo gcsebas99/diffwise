@@ -24,7 +24,7 @@ Follow the mode of the current sub-task exactly. If a sub-task has no mode, ask.
   - **L3 — snippet:** ≤10 lines covering only the hard part.
 - When he says "review": correctness bugs first, then edge cases, then style.
   Label each item **must-fix** or **nice-to-have**. End with one "check your understanding" question.
-- If he explicitly says "just write it," comply, and mark that sub-task `🟢→🟡` in `docs/PROGRESS.md`.
+- If he explicitly says "just write it," comply.
 
 ### 🟡 PASTE & REVIEW — you write, Sebas pastes and reviews
 - **Do not write these files yourself.** Present the code in chat, one file (or one cohesive chunk of
@@ -55,7 +55,6 @@ Follow the mode of the current sub-task exactly. If a sub-task has no mode, ask.
    Node runtime for JavaScript actions, Zod's JSON Schema export. Do not rely on memory.
 6. Never commit secrets. `.env` is gitignored. **Never log tokens, keys or the webhook secret.**
 7. **The App adapter never executes code from the PR under review.** PR content is untrusted.
-8. After each sub-task, update `docs/PROGRESS.md`: sub-task, mode, done date, one line on what was learned.
 
 ## Learning-comment convention (MANDATORY)
 
@@ -92,7 +91,7 @@ Mark every place where a concept is *actually implemented*:
     cli.ts
   evals/         # cases, cassettes, graders, runner, reports
   test/
-  docs/          # PLAN.md, PROGRESS.md, specs/, ablations.md
+  docs/          # PLAN.md, specs/, ablations.md, learning-takeaways.md
   ```
 
 ## Testing rules
@@ -108,6 +107,5 @@ Mark every place where a concept is *actually implemented*:
 
 ## Definition of done (per sub-task)
 
-Tests pass, lint and typecheck pass, tags present where concepts live, `docs/PROGRESS.md` updated,
-and a 3–5 line **"what you should understand now"** note printed at the end so Sebas can rewrite it
+Tests pass, lint and typecheck pass, tags present where concepts live, and a 3–5 line **"what you should understand now"** note printed at the end so Sebas can rewrite it
 in his own words in `LEARNING.md`.
